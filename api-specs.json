@@ -1,0 +1,845 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "기본 모듈",
+    "description": "시군구 정보(시군구코드, 시군구명)를 조회하는 API",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/mediate/rest/cpmsapi020/cpmsapi020/request": {
+      "get": {
+        "summary": "시군구 조회",
+        "deprecated": false,
+        "description": "시군구 정보(시군구코드, 시군구명)를 조회합니다.",
+        "operationId": "cpmsapi020",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "인증키",
+            "required": true,
+            "example": "06dc1e3d56f848328ca5675595f5a382",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "arname",
+            "in": "query",
+            "description": "시도명",
+            "required": true,
+            "example": "서울특별시",
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "정상 응답",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "xml": {
+                    "name": "response"
+                  },
+                  "properties": {
+                    "item": {
+                      "type": "array",
+                      "xml": {
+                        "name": "item",
+                        "wrapped": false
+                      },
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sidoname": {
+                            "type": "string",
+                            "description": "시도명",
+                            "example": "인천광역시"
+                          },
+                          "sigunname": {
+                            "type": "string",
+                            "description": "시군구명",
+                            "example": "중구"
+                          },
+                          "arcode": {
+                            "type": "string",
+                            "description": "시군구코드",
+                            "example": "28110"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "headers": {}
+          },
+          "500": {
+            "description": "서버 오류",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/mediate/rest/cpmsapi021/cpmsapi021/request": {
+      "get": {
+        "summary": "전국 어린이집 정보조회",
+        "deprecated": false,
+        "description": "",
+        "operationId": "cpmsapi021",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "인증키",
+            "required": true,
+            "example": "1f14937bc0724305929643d1e7d415bd",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "arcode",
+            "in": "query",
+            "description": "시군구코드",
+            "required": true,
+            "example": "11110",
+            "schema": {
+              "type": "string",
+              "maxLength": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "xml": {
+                    "name": "response"
+                  },
+                  "properties": {
+                    "item": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stcode": {
+                            "type": "string",
+                            "description": "어린이집코드"
+                          },
+                          "crname": {
+                            "type": "string",
+                            "description": "어린이집명"
+                          },
+                          "crtel": {
+                            "type": "string",
+                            "description": "전화번호"
+                          },
+                          "crfax": {
+                            "type": "string",
+                            "description": "팩스번호"
+                          },
+                          "craddr": {
+                            "type": "string",
+                            "description": "주소"
+                          },
+                          "crhome": {
+                            "type": "string",
+                            "description": "홈페이지"
+                          },
+                          "crcapat": {
+                            "type": "integer",
+                            "description": "정원"
+                          },
+                          "arcode": {
+                            "type": "string",
+                            "description": "시군구코드"
+                          },
+                          "frstcnfmdt": {
+                            "type": "string",
+                            "description": "최초인가일"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/mediate/rest/cpmsapi030/cpmsapi030/request": {
+      "get": {
+        "summary": "어린이집별 기본정보 조회",
+        "deprecated": false,
+        "description": "",
+        "operationId": "cpmsapi030",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "인증키",
+            "required": true,
+            "example": "52b32115fea8420b8204430b91efd44d",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "arcode",
+            "in": "query",
+            "description": "시군구코드",
+            "required": true,
+            "example": "11110",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stcode",
+            "in": "query",
+            "description": "어린이집코드 (옵션)",
+            "required": false,
+            "example": "11110000013",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "xml": {
+                    "name": "response"
+                  },
+                  "properties": {
+                    "item": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sidoname": {
+                            "type": "string"
+                          },
+                          "sigunguname": {
+                            "type": "string"
+                          },
+                          "stcode": {
+                            "type": "string"
+                          },
+                          "crname": {
+                            "type": "string"
+                          },
+                          "crtypename": {
+                            "type": "string"
+                          },
+                          "crstatusname": {
+                            "type": "string"
+                          },
+                          "zipcode": {
+                            "type": "string"
+                          },
+                          "craddr": {
+                            "type": "string"
+                          },
+                          "crtelno": {
+                            "type": "string"
+                          },
+                          "crfaxno": {
+                            "type": "string"
+                          },
+                          "crhome": {
+                            "type": "string"
+                          },
+                          "nrtrroomcnt": {
+                            "type": "integer"
+                          },
+                          "nrtrroomsize": {
+                            "type": "number"
+                          },
+                          "plgrdco": {
+                            "type": "integer"
+                          },
+                          "cctvinstlcnt": {
+                            "type": "integer"
+                          },
+                          "chcrtescnt": {
+                            "type": "integer"
+                          },
+                          "crcapat": {
+                            "type": "integer"
+                          },
+                          "crchcnt": {
+                            "type": "integer"
+                          },
+                          "la": {
+                            "type": "string"
+                          },
+                          "lo": {
+                            "type": "string"
+                          },
+                          "crcargbname": {
+                            "type": "string"
+                          },
+                          "crcnfmdt": {
+                            "type": "string"
+                          },
+                          "datastdrdt": {
+                            "type": "string"
+                          },
+                          "crspec": {
+                            "type": "string"
+                          },
+                          "crrepname": {
+                            "type": "string"
+                          },
+                          "class_cnt_tot": {
+                            "type": "integer"
+                          },
+                          "child_cnt_tot": {
+                            "type": "integer"
+                          },
+                          "em_cnt_tot": {
+                            "type": "integer"
+                          },
+                          "ew_cnt_tot": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/mediate/rest/cpmsapi018/cpmsapi018/request": {
+      "get": {
+        "summary": "월별 신규시설 조회",
+        "deprecated": false,
+        "description": "조회연월에 따라 월별 신규시설 정보를 조회합니다.",
+        "operationId": "cpmsapi018",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "인증키",
+            "required": true,
+            "example": "c7ca309981b94642bac316fe7faa21c0",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "yyyymm",
+            "in": "query",
+            "description": "조회연월 (YYYYMM)",
+            "required": true,
+            "example": "202603",
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 6,
+              "pattern": "^[0-9]{6}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "월별 신규시설 조회 성공",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "xml": {
+                    "name": "response"
+                  },
+                  "properties": {
+                    "item": {
+                      "type": "array",
+                      "xml": {
+                        "name": "item",
+                        "wrapped": false
+                      },
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stcode": {
+                            "type": "string",
+                            "description": "시설코드",
+                            "example": "11200000070"
+                          },
+                          "crname": {
+                            "type": "string",
+                            "description": "보육시설명",
+                            "example": "구립 벽산어린이집"
+                          },
+                          "crtel": {
+                            "type": "string",
+                            "description": "전화번호",
+                            "example": "02-2296-3062"
+                          },
+                          "crfax": {
+                            "type": "string",
+                            "description": "팩스번호",
+                            "example": "02-2299-4736"
+                          },
+                          "craddr": {
+                            "type": "string",
+                            "description": "주소",
+                            "example": "서울 성동구 금호동1가 632 벽산아파트 금호벽산제2관리소2층"
+                          },
+                          "crhome": {
+                            "type": "string",
+                            "description": "홈페이지 주소",
+                            "nullable": true,
+                            "example": "없음"
+                          },
+                          "crcapat": {
+                            "type": "integer",
+                            "description": "정원",
+                            "example": 77
+                          },
+                          "arcode": {
+                            "type": "string",
+                            "description": "시군구코드",
+                            "example": "11200"
+                          },
+                          "frstcnfmdt": {
+                            "type": "string",
+                            "description": "개설일자 (YYYYMMDD)",
+                            "example": "20130521"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "success": {
+                    "summary": "조회 성공 예시",
+                    "value": "{\n    \"response\": {\n        \"item\": [\n            {\n                \"stcode\": \"11200000070\",\n                \"crname\": \"구립 벽산어린이집\",\n                \"crtel\": \"02-2296-3062\",\n                \"crfax\": \"02-2299-4736\",\n                \"craddr\": \"서울 성동구 금호동1가 632 벽산아파트 금호벽산제2관리소2층\",\n                \"crhome\": \"없음\",\n                \"crcapat\": 77,\n                \"arcode\": \"11200\",\n                \"frstcnfmdt\": \"20130521\"\n            },\n            {\n                \"stcode\": \"48880000017\",\n                \"crname\": \"아림키즈어린이집\",\n                \"crtel\": \"055-944-3998\",\n                \"crfax\": \"055-942-3998\",\n                \"craddr\": \"경상남도 거창군 거창읍 소만4길 22\",\n                \"crhome\": \"arimkids.kidwon.com\",\n                \"crcapat\": 134,\n                \"arcode\": \"48880\",\n                \"frstcnfmdt\": \"20130507\"\n            }\n        ]\n    }\n}"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingRequired": {
+                    "summary": "missingRequired",
+                    "value": {
+                      "code": "ERROR-100",
+                      "message": "필수값이 누락되어 있습니다. 필수 값을 확인하십시오!"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "인증 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidKey": {
+                    "summary": "invalidKey",
+                    "value": {
+                      "code": "INFO-100",
+                      "message": "인증키가 유효하지 않습니다. 인증키를 확인하십시오!"
+                    }
+                  },
+                  "expiredKey": {
+                    "summary": "expiredKey",
+                    "value": {
+                      "code": "INFO-400",
+                      "message": "인증키가 만료되었습니다!"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "검색 결과 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "noResult": {
+                    "summary": "noResult",
+                    "value": {
+                      "code": "INFO-200",
+                      "message": "검색결과가 없습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "429": {
+            "description": "요청 한도 초과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "summary": "tooManyRequests",
+                    "value": {
+                      "code": "INFO-300",
+                      "message": "일 요청 건수를 초과하였습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "serverError": {
+                    "summary": "serverError",
+                    "value": {
+                      "code": "ERROR-200",
+                      "message": "서버 에러가 발생하였습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/mediate/rest/cpmsapi019/cpmsapi019/request": {
+      "get": {
+        "summary": "월별 폐지시설 조회",
+        "deprecated": false,
+        "description": "조회연월에 따라 월별 폐지시설 정보를 조회합니다.",
+        "operationId": "cpmsapi019",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "인증키",
+            "required": true,
+            "example": "9acaa3bcb2234a0cb5242d3d237aea3c",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "yyyymm",
+            "in": "query",
+            "description": "조회연월 (YYYYMM)",
+            "required": true,
+            "example": "202603",
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 6,
+              "pattern": "^[0-9]{6}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "월별 폐지시설 조회 성공",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "object",
+                  "xml": {
+                    "name": "response"
+                  },
+                  "properties": {
+                    "item": {
+                      "type": "array",
+                      "xml": {
+                        "name": "item",
+                        "wrapped": false
+                      },
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stcode": {
+                            "type": "string",
+                            "description": "시설코드",
+                            "example": "47113000041"
+                          },
+                          "crname": {
+                            "type": "string",
+                            "description": "보육시설명",
+                            "example": "동화마을어린이집"
+                          },
+                          "crtel": {
+                            "type": "string",
+                            "description": "전화번호",
+                            "example": "054-283-9798"
+                          },
+                          "crfax": {
+                            "type": "string",
+                            "description": "팩스번호",
+                            "example": "--"
+                          },
+                          "craddr": {
+                            "type": "string",
+                            "description": "주소",
+                            "example": "경상북도 포항시 북구 중흥로151번길 32"
+                          },
+                          "crhome": {
+                            "type": "string",
+                            "description": "홈페이지 주소",
+                            "nullable": true,
+                            "example": ""
+                          },
+                          "crcapat": {
+                            "type": "integer",
+                            "description": "정원",
+                            "example": 39
+                          },
+                          "arcode": {
+                            "type": "string",
+                            "description": "시군구코드",
+                            "example": "47110"
+                          },
+                          "crstdate": {
+                            "type": "string",
+                            "description": "폐지일자 (YYYYMMDD)",
+                            "example": "20130501"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "success": {
+                    "summary": "조회 성공 예시",
+                    "value": "{\n    \"response\": {\n        \"item\": [\n            {\n                \"stcode\": \"47113000041\",\n                \"crname\": \"동화마을어린이집\",\n                \"crtel\": \"054-283-9798\",\n                \"crfax\": \"--\",\n                \"craddr\": \"경상북도 포항시 북구 중흥로151번길 32\",\n                \"crhome\": \"\",\n                \"crcapat\": 39,\n                \"arcode\": \"47110\",\n                \"crstdate\": \"20130501\"\n            },\n            {\n                \"stcode\": \"28200000005\",\n                \"crname\": \"성산베데스다어린이집\",\n                \"crtel\": \"032-435-0036\",\n                \"crfax\": \"032-427-0006\",\n                \"craddr\": \"인천광역시 남동구 문화서로4번길 35-31\",\n                \"crhome\": \"www.fgkid.com\",\n                \"crcapat\": 39,\n                \"arcode\": \"28200\",\n                \"crstdate\": \"20130530\"\n            },\n            {\n                \"stcode\": \"41390000252\",\n                \"crname\": \"신이화어린이집\",\n                \"crtel\": \"031-311-0337\",\n                \"crfax\": \"031-311-0337\",\n                \"craddr\": \"경기도 시흥시 신천로44번길 16\",\n                \"crhome\": \"\",\n                \"crcapat\": 36,\n                \"arcode\": \"41390\",\n                \"crstdate\": \"20130531\"\n            }\n        ]\n    }\n}"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingRequired": {
+                    "summary": "missingRequired",
+                    "value": {
+                      "code": "ERROR-100",
+                      "message": "필수값이 누락되어 있습니다. 필수 값을 확인하십시오!"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "인증 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidKey": {
+                    "summary": "invalidKey",
+                    "value": {
+                      "code": "INFO-100",
+                      "message": "인증키가 유효하지 않습니다. 인증키를 확인하십시오!"
+                    }
+                  },
+                  "expiredKey": {
+                    "summary": "expiredKey",
+                    "value": {
+                      "code": "INFO-400",
+                      "message": "인증키가 만료되었습니다!"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "검색 결과 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "noResult": {
+                    "summary": "noResult",
+                    "value": {
+                      "code": "INFO-200",
+                      "message": "검색결과가 없습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "429": {
+            "description": "요청 한도 초과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "tooManyRequests": {
+                    "summary": "tooManyRequests",
+                    "value": {
+                      "code": "INFO-300",
+                      "message": "일 요청 건수를 초과하였습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "500": {
+            "description": "서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "serverError": {
+                    "summary": "serverError",
+                    "value": {
+                      "code": "ERROR-200",
+                      "message": "서버 에러가 발생하였습니다."
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "ERROR-100"
+          },
+          "message": {
+            "type": "string",
+            "example": "필수값이 누락되어 있습니다. 필수 값을 확인하십시오!"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      }
+    },
+    "responses": {
+      "ErrorResponse": {
+        "description": "에러 응답",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "example": "ERROR-100"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "필수값이 누락되어 있습니다."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

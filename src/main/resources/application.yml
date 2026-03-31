@@ -1,0 +1,57 @@
+#spring:
+#  profiles:
+#    active: local
+#  main:
+#    web-application-type: servlet
+
+server:
+  port: 8080
+  shutdown: graceful
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+childcare:
+  api:
+    base-url: http://api.childcare.go.kr
+    retry-max-attempts: 3
+    retry-delay-ms: 60000  # 429 응답 시 1분 대기
+    keys:
+      sigungu: ${KIZLE_KEY_SIGUNGU}       # cpmsapi020
+      daycare-detail: ${KIZLE_KEY_DETAIL} # cpmsapi030
+      new-daycare: ${KIZLE_KEY_NEW}      # cpmsapi018
+      closed-daycare: ${KIZLE_KEY_CLOSED} # cpmsapi019
+
+telegram:
+  bot-token: ${TELEGRAM_BOT_TOKEN}
+  chat-id: ${TELEGRAM_CHAT_ID}
+
+logging:
+  level:
+    kr.kidzly.sync: INFO
+    kr.kidzly.sync.infrastructure.api: DEBUG
+    org.hibernate.SQL: WARN

@@ -2,7 +2,6 @@ package kr.kidzly.sync.application.usecase
 
 import arrow.core.Either
 import kr.kidzly.sync.application.SyncOrchestrator
-import kr.kidzly.sync.application.model.DaycareData
 import kr.kidzly.sync.application.model.SyncResult
 import kr.kidzly.sync.application.port.ChildcareApiPort
 import kr.kidzly.sync.domain.error.DomainError
@@ -20,7 +19,8 @@ class FullSyncUseCase(
     private val log = LoggerFactory.getLogger(javaClass)
 
     fun execute(): Either<DomainError, SyncResult> {
-        val allDaycares = mutableListOf<DaycareData>()
+        var totalCount = 0
+        var upsertCount = 0
 
         for (sidoname in SyncOrchestrator.SIDO_LIST) {
             log.debug("시도 '$sidoname' 시군구 목록 조회 시작")
@@ -40,8 +40,10 @@ class FullSyncUseCase(
                         log.warn("시군구 '${sigungu.arcode}(${sigungu.sigunname})' 조회 실패: $error — 건너뜀")
                     },
                     ifRight = { daycares ->
-                        allDaycares.addAll(daycares)
-                        log.debug("시군구 '${sigungu.sigunname}' 어린이집 ${daycares.size}개 수집 (누적 ${allDaycares.size}개)")
+                        val count = daycareRepository.upsertAll(daycares)
+                        totalCount += daycares.size
+                        upsertCount += count
+                        log.debug("시군구 '${sigungu.sigunname}' 어린이집 ${daycares.size}개 upsert (누적 ${totalCount}개)")
                     },
                 )
 
@@ -50,10 +52,8 @@ class FullSyncUseCase(
             }
         }
 
-        log.info("전체 수집 완료 — 총 ${allDaycares.size}개, upsert 시작")
-        val upsertCount = daycareRepository.upsertAll(allDaycares)
-
-        return Either.Right(SyncResult(total = allDaycares.size, upserted = upsertCount))
+        log.info("전체 동기화 완료 — 총 ${totalCount}개, upserted=${upsertCount}개")
+        return Either.Right(SyncResult(total = totalCount, upserted = upsertCount))
     }
 
     companion object {

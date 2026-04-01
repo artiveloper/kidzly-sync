@@ -3,14 +3,15 @@ package kr.kidzly.sync.infrastructure.config
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.converter.StringHttpMessageConverter
 import org.springframework.web.client.RestClient
 
 @Configuration
-class InfrastructureConfig {
+class InfrastructureConfig(
+    private val childcareApiProperties: ChildcareApiProperties,
+) {
 
     @Bean
     fun xmlMapper(): XmlMapper =
@@ -22,11 +23,9 @@ class InfrastructureConfig {
             .build()
 
     @Bean("childcareRestClient")
-    fun childcareRestClient(
-        @Value("\${childcare.api.base-url}") baseUrl: String,
-    ): RestClient =
+    fun childcareRestClient(): RestClient =
         RestClient.builder()
-            .baseUrl(baseUrl)
+            .baseUrl(childcareApiProperties.baseUrl)
             .messageConverters { converters ->
                 converters.removeIf { it is StringHttpMessageConverter }
                 converters.add(0, StringHttpMessageConverter(Charsets.UTF_8))

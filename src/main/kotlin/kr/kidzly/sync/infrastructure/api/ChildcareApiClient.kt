@@ -24,7 +24,7 @@ import org.springframework.web.client.RestClientException
 
 @Component
 class ChildcareApiClient(
-    @Qualifier("childcareRestClient") private val restClient: RestClient,
+    @param:Qualifier("childcareRestClient") private val restClient: RestClient,
     private val xmlMapper: XmlMapper,
     private val props: ChildcareApiProperties,
 ) : ChildcareApiPort {

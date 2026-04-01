@@ -34,7 +34,7 @@ data class DaycareData(
     val crcapat: Int?,
     val crchcnt: Int?,
     val nrtrroomcnt: Int?,
-    val nrtrroomsize: Double?,
+    val nrtrroomsize: java.math.BigDecimal?,
     val plgrdco: Int?,
     val cctvinstlcnt: Int?,
     val chcrtescnt: Int?,

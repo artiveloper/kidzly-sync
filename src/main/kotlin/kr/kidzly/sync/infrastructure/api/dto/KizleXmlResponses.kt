@@ -45,7 +45,7 @@ data class DaycareDetailXmlItem(
     val crcapat: Int? = null,
     val crchcnt: Int? = null,
     val nrtrroomcnt: Int? = null,
-    val nrtrroomsize: Double? = null,
+    val nrtrroomsize: java.math.BigDecimal? = null,
     val plgrdco: Int? = null,
     val cctvinstlcnt: Int? = null,
     val chcrtescnt: Int? = null,

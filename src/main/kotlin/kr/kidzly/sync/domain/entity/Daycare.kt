@@ -1,6 +1,7 @@
 package kr.kidzly.sync.domain.entity
 
 import jakarta.persistence.*
+import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @Entity
@@ -62,7 +63,7 @@ class Daycare(
     val nrtrroomcnt: Int?,
 
     @Column(name = "nrtrroomsize")
-    val nrtrroomsize: Double?,
+    val nrtrroomsize: BigDecimal?,
 
     @Column(name = "plgrdco")
     val plgrdco: Int?,

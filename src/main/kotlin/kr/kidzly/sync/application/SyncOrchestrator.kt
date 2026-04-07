@@ -171,14 +171,14 @@ class SyncOrchestrator(
                 throw RuntimeException(error.toString())
             },
             ifRight = { newDaycares ->
-                val affectedArcodes = newDaycares.map { it.arcode }.toSet()
-                val newStcodes = newDaycares.map { it.stcode }.toSet()
+                val affectedArcodes = newDaycares.map { it.sigunguCode }.toSet()
+                val newDaycareCodes = newDaycares.map { it.daycareCode }.toSet()
                 var upsertCount = 0
                 for (arcode in affectedArcodes) {
                     childcareApiPort.fetchDaycareDetails(arcode).fold(
                         ifLeft = { error -> log.warn("시군구 '$arcode' 상세 조회 실패: $error — 건너뜀") },
                         ifRight = { daycares ->
-                            upsertCount += daycareRepository.upsertAll(daycares.filter { it.stcode in newStcodes })
+                            upsertCount += daycareRepository.upsertAll(daycares.filter { it.daycareCode in newDaycareCodes })
                         },
                     )
                     Thread.sleep(REQUEST_INTERVAL_MS)
@@ -201,7 +201,7 @@ class SyncOrchestrator(
             ifRight = { closedDaycares ->
                 var closedCount = 0
                 for (closed in closedDaycares) {
-                    closedCount += daycareRepository.markAsClosed(closed.stcode, closed.crstdate)
+                    closedCount += daycareRepository.markAsClosed(closed.daycareCode, closed.abolishedDate)
                 }
                 log.info("폐지 어린이집 동기화 완료 ($yyyymm, ${closedCount}개)")
                 SyncResult(total = closedDaycares.size, upserted = 0, closed = closedCount)

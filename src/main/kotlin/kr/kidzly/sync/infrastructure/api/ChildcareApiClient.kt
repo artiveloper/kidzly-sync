@@ -63,7 +63,7 @@ class ChildcareApiClient(
             xmlMapper.readValue(body, DaycareListXmlResponse::class.java)
                 .items
                 .filter { it.stcode.isNotBlank() }
-                .map { NewDaycareInfo(stcode = it.stcode, arcode = it.arcode) }
+                .map { NewDaycareInfo(daycareCode = it.stcode, sigunguCode = it.arcode) }
         }
 
     override fun fetchClosedDaycares(yyyymm: String): Either<DomainError, List<ClosedDaycareInfo>> =
@@ -75,7 +75,7 @@ class ChildcareApiClient(
             xmlMapper.readValue(body, DaycareListXmlResponse::class.java)
                 .items
                 .filter { it.stcode.isNotBlank() }
-                .map { ClosedDaycareInfo(stcode = it.stcode, crstdate = it.crstdate) }
+                .map { ClosedDaycareInfo(daycareCode = it.stcode, abolishedDate = it.crstdate) }
         }
 
     @Retryable(
@@ -138,37 +138,80 @@ class ChildcareApiClient(
         }
     }
 
-    private fun DaycareDetailXmlItem.toDaycareData(arcode: String) = DaycareData(
-        stcode = stcode,
-        arcode = arcode,
-        sidoname = sidoname,
-        sigunguname = sigunguname,
-        crname = crname,
-        crtypename = crtypename,
-        crstatusname = crstatusname,
-        zipcode = zipcode,
-        craddr = craddr,
-        crtelno = crtelno,
-        crfaxno = crfaxno,
-        crhome = crhome,
-        la = la,
-        lo = lo,
-        crcapat = crcapat,
-        crchcnt = crchcnt,
-        nrtrroomcnt = nrtrroomcnt,
-        nrtrroomsize = nrtrroomsize,
-        plgrdco = plgrdco,
-        cctvinstlcnt = cctvinstlcnt,
-        chcrtescnt = chcrtescnt,
-        classCntTot = classCntTot,
-        childCntTot = childCntTot,
-        emCntTot = emCntTot,
-        ewCntTot = ewCntTot,
-        crrepname = crrepname,
-        crcnfmdt = crcnfmdt,
-        crstdate = crstdate,
+    private fun DaycareDetailXmlItem.toDaycareData(sigunguCode: String) = DaycareData(
+        daycareCode = stcode,
+        sigunguCode = sigunguCode,
+        sidoName = sidoname,
+        sigunguName = sigunguname,
+        name = crname,
+        typeName = crtypename,
+        status = crstatusname,
+        zipCode = zipcode,
+        address = craddr,
+        phone = crtelno,
+        fax = crfaxno,
+        homepage = crhome,
+        latitude = la,
+        longitude = lo,
+        capacity = crcapat,
+        currentChildCount = crchcnt,
+        nurseryRoomCount = nrtrroomcnt,
+        nurseryRoomSize = nrtrroomsize,
+        playgroundCount = plgrdco,
+        cctvCount = cctvinstlcnt,
+        childcareStaffCount = chcrtescnt,
+        vehicleOperation = crcargbname,
+        representativeName = crrepname,
+        certifiedDate = crcnfmdt,
+        pauseStartDate = crpausebegindt,
+        pauseEndDate = crpauseenddt,
+        abolishedDate = crabldt,
+        dataStandardDate = datastdrdt,
+        services = crspec,
+        classCountAge0 = classCnt00,
+        classCountAge1 = classCnt01,
+        classCountAge2 = classCnt02,
+        classCountAge3 = classCnt03,
+        classCountAge4 = classCnt04,
+        classCountAge5 = classCnt05,
+        classCountInfantMixed = classCntM2,
+        classCountChildMixed = classCntM5,
+        classCountSpecial = classCntSp,
+        classCountTotal = classCntTot,
+        childCountAge0 = childCnt00,
+        childCountAge1 = childCnt01,
+        childCountAge2 = childCnt02,
+        childCountAge3 = childCnt03,
+        childCountAge4 = childCnt04,
+        childCountAge5 = childCnt05,
+        childCountInfantMixed = childCntM2,
+        childCountChildMixed = childCntM5,
+        childCountSpecial = childCntSp,
+        childCountTotal = childCntTot,
+        staffTenureUnder1y = emCnt0y,
+        staffTenure1yTo2y = emCnt1y,
+        staffTenure2yTo4y = emCnt2y,
+        staffTenure4yTo6y = emCnt4y,
+        staffTenureOver6y = emCnt6y,
+        staffDirectorCount = emCntA1,
+        staffTeacherCount = emCntA2,
+        staffSpecialTeacherCount = emCntA3,
+        staffTherapistCount = emCntA4,
+        staffNutritionistCount = emCntA5,
+        staffNurseCount = emCntA6,
+        staffNursingAssistantCount = emCntA10,
+        staffCookCount = emCntA7,
+        staffOfficeCount = emCntA8,
+        staffTotal = emCntTot,
+        waitingChildAge0 = ewCnt00,
+        waitingChildAge1 = ewCnt01,
+        waitingChildAge2 = ewCnt02,
+        waitingChildAge3 = ewCnt03,
+        waitingChildAge4 = ewCnt04,
+        waitingChildAge5 = ewCnt05,
+        waitingChildAgeOver6 = ewCntM6,
+        waitingChildTotal = ewCntTot,
     )
-
 }
 
 // @Retryable annotation argument는 compile-time constant여야 하므로 top-level로 선언

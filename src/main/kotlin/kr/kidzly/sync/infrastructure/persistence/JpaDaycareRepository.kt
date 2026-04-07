@@ -14,12 +14,12 @@ interface JpaDaycareRepository : JpaRepository<Daycare, String> {
     @Query(
         """
         UPDATE Daycare d
-        SET d.crstatusname = '폐지', d.crstdate = :crstdate, d.syncedAt = CURRENT_TIMESTAMP
-        WHERE d.stcode = :stcode
+        SET d.status = '폐지', d.abolishedDate = :abolishedDate, d.syncedAt = CURRENT_TIMESTAMP
+        WHERE d.daycareCode = :daycareCode
         """,
     )
     fun markAsClosed(
-        @Param("stcode") stcode: String,
-        @Param("crstdate") crstdate: String?,
+        @Param("daycareCode") daycareCode: String,
+        @Param("abolishedDate") abolishedDate: String?,
     ): Int
 }

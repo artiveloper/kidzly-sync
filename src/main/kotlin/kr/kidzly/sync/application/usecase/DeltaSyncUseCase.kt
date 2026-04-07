@@ -31,8 +31,8 @@ class DeltaSyncUseCase(
         val newDaycares = newDaycaresResult.getOrNull()!!
         log.info("[$yyyymm] 신규시설 ${newDaycares.size}개 확인")
 
-        val affectedArcodes = newDaycares.map { it.arcode }.toSet()
-        val newStcodes = newDaycares.map { it.stcode }.toSet()
+        val affectedArcodes = newDaycares.map { it.sigunguCode }.toSet()
+        val newDaycareCodes = newDaycares.map { it.daycareCode }.toSet()
         log.debug("[$yyyymm] 영향받은 시군구: $affectedArcodes")
 
         val upsertList = mutableListOf<DaycareData>()
@@ -43,8 +43,8 @@ class DeltaSyncUseCase(
                     log.warn("시군구 '$arcode' 상세 조회 실패: $error — 건너뜀")
                 },
                 ifRight = { daycares ->
-                    // 신규 stcode 포함된 항목만 upsert (해당 시군구 전체 갱신)
-                    val filtered = daycares.filter { it.stcode in newStcodes }
+                    // 신규 daycare_code 포함된 항목만 upsert (해당 시군구 전체 갱신)
+                    val filtered = daycares.filter { it.daycareCode in newDaycareCodes }
                     upsertList.addAll(filtered)
                     log.debug("[$yyyymm] 시군구 '$arcode' 전체 ${daycares.size}개 중 신규 ${filtered.size}개 추출")
                 },
@@ -70,8 +70,8 @@ class DeltaSyncUseCase(
 
         var closedCount = 0
         for (closed in closedDaycares) {
-            log.debug("[$yyyymm] 폐지 처리: stcode=${closed.stcode}, crstdate=${closed.crstdate}")
-            closedCount += daycareRepository.markAsClosed(closed.stcode, closed.crstdate)
+            log.debug("[$yyyymm] 폐지 처리: daycareCode=${closed.daycareCode}, abolishedDate=${closed.abolishedDate}")
+            closedCount += daycareRepository.markAsClosed(closed.daycareCode, closed.abolishedDate)
         }
         log.info("[$yyyymm] 폐지 처리 ${closedCount}개 완료")
 

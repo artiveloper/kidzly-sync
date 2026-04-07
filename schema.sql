@@ -1,3 +1,9 @@
+staff_tenure_under_1y         double precision,
+    staff_tenure_1y_to_2y         double precision,
+    staff_tenure_2y_to_4y         double precision,
+    staff_tenure_4y_to_6y         double precision,
+    staff_tenure_over_6y          double precision,
+
 -- auto-generated definition
 create table daycares
 (
@@ -120,7 +126,7 @@ comment on column daycares.playground_count is '놀이터 수';
 
 comment on column daycares.cctv_count is 'CCTV 설치 수';
 
-comment on column daycares.childcare_staff_count is '차량 수';
+comment on column daycares.childcare_staff_count is '보육교직원 수';
 
 comment on column daycares.class_count_total is '반 수 합계';
 
@@ -128,7 +134,7 @@ comment on column daycares.child_count_total is '아동 수 합계';
 
 comment on column daycares.staff_total is '교직원 수 합계';
 
-comment on column daycares.waiting_child_total is '여성 교직원 수 합계';
+comment on column daycares.waiting_child_total is '입소대기 아동 수 합계';
 
 comment on column daycares.representative_name is '대표자명';
 

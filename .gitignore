@@ -47,3 +47,4 @@ bin/
 
 ### Local secrets ###
 src/main/resources/application-local.yml
+src/main/resources/application-prod.yml

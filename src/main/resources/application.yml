@@ -49,5 +49,4 @@ telegram:
 logging:
   level:
     kr.kidzly.sync: INFO
-    kr.kidzly.sync.infrastructure.api: DEBUG
     org.hibernate.SQL: WARN

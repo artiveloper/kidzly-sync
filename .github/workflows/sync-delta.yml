@@ -1,0 +1,47 @@
+name: Delta Sync (Daily)
+
+on:
+  schedule:
+    # 매일 02:00 KST (= 전날 17:00 UTC)
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+    inputs:
+      yearMonth:
+        description: '대상 연월 (예: 2026-03). 비워두면 당월'
+        required: false
+        type: string
+
+jobs:
+  delta-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Write prod config
+        run: echo "${{ secrets.APP_PROD_YML }}" > src/main/resources/application-prod.yml
+
+      - name: Build jar
+        run: ./gradlew bootJar -x test
+
+      - name: Resolve target year-month
+        id: resolve
+        run: |
+          if [ -n "${{ github.event.inputs.yearMonth }}" ]; then
+            echo "year_month=${{ github.event.inputs.yearMonth }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "year_month=$(date -u '+%Y-%m')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run delta sync
+        run: java -jar build/libs/*.jar --spring.profiles.active=prod
+        env:
+          SPRING_MAIN_WEB_APPLICATION_TYPE: none
+          SYNC_JOB: DELTA
+          SYNC_YEAR_MONTH: ${{ steps.resolve.outputs.year_month }}

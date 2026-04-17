@@ -24,11 +24,23 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Cache Gradle build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+            build
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Write prod config
         run: echo "${{ secrets.APP_PROD_YML }}" > src/main/resources/application-prod.yml
 
       - name: Build jar
-        run: ./gradlew bootJar -x test
+        run: ./gradlew bootJar -x test --build-cache
 
       - name: Resolve target year-month
         id: resolve

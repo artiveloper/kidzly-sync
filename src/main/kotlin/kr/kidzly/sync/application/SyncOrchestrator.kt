@@ -4,6 +4,7 @@ import kr.kidzly.sync.application.model.SyncResult
 import kr.kidzly.sync.application.port.ChildcareApiPort
 import kr.kidzly.sync.application.usecase.DeltaSyncUseCase
 import kr.kidzly.sync.application.usecase.FullSyncUseCase
+import kr.kidzly.sync.application.usecase.IncrementalDaycaresSummaryUseCase
 import kr.kidzly.sync.domain.entity.SyncHistory
 import kr.kidzly.sync.domain.entity.SyncStatus
 import kr.kidzly.sync.domain.entity.SyncType
@@ -21,6 +22,7 @@ import java.time.format.DateTimeFormatter
 class SyncOrchestrator(
     private val fullSyncUseCase: FullSyncUseCase,
     private val deltaSyncUseCase: DeltaSyncUseCase,
+    private val incrementalDaycaresSummaryUseCase: IncrementalDaycaresSummaryUseCase,
     private val childcareApiPort: ChildcareApiPort,
     private val daycareRepository: DaycareRepository,
     private val sigunguRepository: SigunguRepository,
@@ -122,6 +124,20 @@ class SyncOrchestrator(
                     - 폐지 처리: ${result.closed}개
                     """.trimIndent(),
                 )
+
+                if (result.upserted > 0) {
+                    log.info("증분 AI 요약 생성 시작 (기준시각=${history.startedAt})")
+                    val summaryResult = incrementalDaycaresSummaryUseCase.execute(history.startedAt)
+                    log.info("증분 AI 요약 생성 완료 — 성공=${summaryResult.successCount}, 실패=${summaryResult.failedCount}")
+                    telegramNotifier.sendMessage(
+                        """
+                        🤖 <b>증분 AI 요약 생성 완료</b> ($yyyymm)
+                        - 대상: ${summaryResult.totalCount}개
+                        - 성공: ${summaryResult.successCount}개
+                        - 실패: ${summaryResult.failedCount}개
+                        """.trimIndent(),
+                    )
+                }
             },
         )
     }

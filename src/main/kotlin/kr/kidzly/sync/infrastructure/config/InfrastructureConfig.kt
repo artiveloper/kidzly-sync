@@ -2,17 +2,27 @@ package kr.kidzly.sync.infrastructure.config
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
 import org.springframework.http.converter.StringHttpMessageConverter
 import org.springframework.web.client.RestClient
 
 @Configuration
 class InfrastructureConfig(
     private val childcareApiProperties: ChildcareApiProperties,
+    private val groqApiProperties: GroqApiProperties,
 ) {
+
+    @Bean
+    @Primary
+    fun objectMapper(): ObjectMapper =
+        ObjectMapper()
+            .registerModule(kotlinModule())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     @Bean
     fun xmlMapper(): XmlMapper =
@@ -37,5 +47,12 @@ class InfrastructureConfig(
     @Bean("telegramRestClient")
     fun telegramRestClient(): RestClient =
         RestClient.builder()
+            .build()
+
+    @Bean("groqRestClient")
+    fun groqRestClient(): RestClient =
+        RestClient.builder()
+            .baseUrl(groqApiProperties.baseUrl)
+            .defaultHeader("Authorization", "Bearer ${groqApiProperties.apiKey}")
             .build()
 }

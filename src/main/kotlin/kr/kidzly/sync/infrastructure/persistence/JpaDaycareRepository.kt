@@ -6,8 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.LocalDateTime
 
 interface JpaDaycareRepository : JpaRepository<Daycare, String> {
+
+    fun findAllByStatus(status: String): List<Daycare>
+
+    fun findAllByStatusAndAiAnalysisIsNull(status: String): List<Daycare>
+
+    fun findAllByStatusAndSyncedAtAfter(status: String, syncedAt: LocalDateTime): List<Daycare>
 
     @Modifying
     @Transactional

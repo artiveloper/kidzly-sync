@@ -46,6 +46,21 @@ telegram:
   bot-token: ${TELEGRAM_BOT_TOKEN}
   chat-id: ${TELEGRAM_CHAT_ID}
 
+ai:
+  provider: gemini  # groq | gemini
+
+groq:
+  api-key: ${GROQ_API_KEY}
+  base-url: https://api.groq.com
+  model: openai/gpt-oss-120b
+  request-interval-ms: 20000  # free tier: 30 RPM → 20s 간격
+
+gemini:
+  api-key: ${GEMINI_API_KEY}
+  base-url: https://generativelanguage.googleapis.com
+  model: gemini-2.0-flash
+  request-interval-ms: 4000  # free tier: 15 RPM → 4s 간격
+
 logging:
   level:
     kr.kidzly.sync: INFO

@@ -156,4 +156,8 @@ class Daycare(
 
     @Column(name = "synced_at", nullable = false)
     val syncedAt: LocalDateTime = LocalDateTime.now(),
-)
+) {
+    // AI 요약
+    @Column(name = "ai_analysis", columnDefinition = "jsonb")
+    val aiAnalysis: String? = null
+}

@@ -1,6 +1,7 @@
 package kr.kidzly.sync.infrastructure.persistence
 
 import kr.kidzly.sync.application.model.DaycareData
+import kr.kidzly.sync.domain.entity.Daycare
 import kr.kidzly.sync.domain.repository.DaycareRepository
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -24,6 +25,32 @@ class DaycareRepositoryImpl(
     @Transactional
     override fun markAsClosed(daycareCode: String, abolishedDate: String?): Int =
         jpaDaycareRepository.markAsClosed(daycareCode, abolishedDate)
+
+    @Transactional(readOnly = true)
+    override fun findByCode(daycareCode: String): Daycare? =
+        jpaDaycareRepository.findById(daycareCode).orElse(null)
+
+    @Transactional(readOnly = true)
+    override fun findAllByStatus(status: String): List<Daycare> =
+        jpaDaycareRepository.findAllByStatus(status)
+
+    @Transactional(readOnly = true)
+    override fun findAllByStatusAndAiAnalysisIsNull(status: String): List<Daycare> =
+        jpaDaycareRepository.findAllByStatusAndAiAnalysisIsNull(status)
+
+    @Transactional(readOnly = true)
+    override fun findAllByStatusAndSyncedAtAfter(status: String, after: LocalDateTime): List<Daycare> =
+        jpaDaycareRepository.findAllByStatusAndSyncedAtAfter(status, after)
+
+    @Transactional
+    override fun saveAiAnalysis(daycareCode: String, analysisJson: String) {
+        jdbcTemplate.update(
+            "UPDATE daycares SET ai_analysis = CAST(:analysisJson AS jsonb) WHERE daycare_code = :daycareCode",
+            MapSqlParameterSource()
+                .addValue("analysisJson", analysisJson)
+                .addValue("daycareCode", daycareCode),
+        )
+    }
 
     private fun DaycareData.toSqlParams() =
         MapSqlParameterSource()

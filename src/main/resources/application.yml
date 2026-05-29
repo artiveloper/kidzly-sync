@@ -47,12 +47,12 @@ telegram:
   chat-id: ${TELEGRAM_CHAT_ID}
 
 ai:
-  provider: gemini  # groq | gemini
+  provider: groq  # groq | gemini
 
 groq:
   api-key: ${GROQ_API_KEY}
   base-url: https://api.groq.com
-  model: openai/gpt-oss-120b
+  model: openai/gpt-oss-20b
   request-interval-ms: 20000  # free tier: 30 RPM → 20s 간격
 
 gemini:

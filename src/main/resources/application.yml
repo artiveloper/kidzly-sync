@@ -52,7 +52,7 @@ ai:
 groq:
   api-key: ${GROQ_API_KEY}
   base-url: https://api.groq.com
-  model: openai/gpt-oss-20b
+  model: openai/gpt-oss-120b
   request-interval-ms: 20000  # free tier: 30 RPM → 20s 간격
 
 gemini:

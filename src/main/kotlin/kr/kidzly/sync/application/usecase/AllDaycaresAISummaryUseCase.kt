@@ -31,8 +31,7 @@ class AllDaycaresAISummaryUseCase(
                 ifRight = { summary ->
                     runCatching {
                         val json = objectMapper.writeValueAsString(summary)
-                        log.info("AI 요약 생성 결과 : {}", json.toString())
-                        // daycareRepository.saveAiAnalysis(daycare.daycareCode, json)
+                        daycareRepository.saveAiAnalysis(daycare.daycareCode, json)
                         successCount++
                     }.onFailure { e ->
                         log.error("AI 분석 결과 저장 실패: daycareCode={}", daycare.daycareCode, e)

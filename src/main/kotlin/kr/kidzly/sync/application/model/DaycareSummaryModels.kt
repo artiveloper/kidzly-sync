@@ -2,9 +2,10 @@ package kr.kidzly.sync.application.model
 
 data class DaycareSummary(
     val summary: String,
-    val strengths: List<String>,
-    val considerations: List<String>,
-    val tags: List<String>,
+    @com.fasterxml.jackson.annotation.JsonProperty("who_may_be_interested")
+    val whoMayBeInterested: List<String>,
+    @com.fasterxml.jackson.annotation.JsonProperty("things_to_consider")
+    val thingsToConsider: List<String>,
 )
 
 data class BulkAiSummaryResult(

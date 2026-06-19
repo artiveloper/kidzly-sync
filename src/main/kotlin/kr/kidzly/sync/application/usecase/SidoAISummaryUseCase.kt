@@ -8,16 +8,16 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
-class AllDaycaresAISummaryUseCase(
+class SidoAISummaryUseCase(
     private val daycareRepository: DaycareRepository,
     private val aiSummaryPort: AiSummaryPort,
     private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun execute(): BulkAiSummaryResult {
-        val daycares = daycareRepository.findAllByStatusAndAiAnalysisIsNull("정상")
-        log.info("전체 AI 요약 생성 시작: 대상 어린이집 수={}", daycares.size)
+    fun execute(sidoName: String): BulkAiSummaryResult {
+        val daycares = daycareRepository.findAllByStatusAndSidoNameAndAiAnalysisIsNull("정상", sidoName)
+        log.info("시도별 AI 요약 생성 시작: sidoName={}, 대상 어린이집 수={}", sidoName, daycares.size)
 
         var successCount = 0
         var failedCount = 0
@@ -31,8 +31,7 @@ class AllDaycaresAISummaryUseCase(
                 ifRight = { summary ->
                     runCatching {
                         val json = objectMapper.writeValueAsString(summary)
-                        log.info("AI 요약 생성 결과 : {}", json.toString())
-                        // daycareRepository.saveAiAnalysis(daycare.daycareCode, json)
+                        daycareRepository.saveAiAnalysis(daycare.daycareCode, json)
                         successCount++
                     }.onFailure { e ->
                         log.error("AI 분석 결과 저장 실패: daycareCode={}", daycare.daycareCode, e)
@@ -43,7 +42,7 @@ class AllDaycaresAISummaryUseCase(
             Thread.sleep(aiSummaryPort.requestIntervalMs)
         }
 
-        log.info("전체 AI 요약 생성 완료: 성공={}, 실패={}", successCount, failedCount)
+        log.info("시도별 AI 요약 생성 완료: sidoName={}, 성공={}, 실패={}", sidoName, successCount, failedCount)
         return BulkAiSummaryResult(
             totalCount = daycares.size,
             successCount = successCount,

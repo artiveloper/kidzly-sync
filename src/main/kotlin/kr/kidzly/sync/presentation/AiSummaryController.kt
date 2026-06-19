@@ -4,6 +4,7 @@ import kr.kidzly.sync.application.model.BulkAiSummaryResult
 import kr.kidzly.sync.application.model.DaycareSummary
 import kr.kidzly.sync.application.usecase.AllDaycaresAISummaryUseCase
 import kr.kidzly.sync.application.usecase.DaycareAISummaryUseCase
+import kr.kidzly.sync.application.usecase.SidoAISummaryUseCase
 import kr.kidzly.sync.domain.error.DomainError
 import kr.kidzly.sync.presentation.dto.ApiResponse
 import org.slf4j.LoggerFactory
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 class AiSummaryController(
     private val daycareAISummaryUseCase: DaycareAISummaryUseCase,
     private val allDaycaresAISummaryUseCase: AllDaycaresAISummaryUseCase,
+    private val sidoAISummaryUseCase: SidoAISummaryUseCase,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -30,6 +33,19 @@ class AiSummaryController(
     fun generateAllSummaries(): ResponseEntity<ApiResponse<BulkAiSummaryResult>> {
         log.info("전체 어린이집 AI 요약 일괄 생성 요청")
         val result = allDaycaresAISummaryUseCase.execute()
+        return ResponseEntity.ok(ApiResponse.ok(result))
+    }
+
+    /**
+     * 시도별 어린이집 AI 요약 일괄 생성
+     * POST /api/v1/daycares/ai-summary/sido?sidoName=서울특별시
+     */
+    @PostMapping("/ai-summary/sido")
+    fun generateSummariesBySido(
+        @RequestParam sidoName: String,
+    ): ResponseEntity<ApiResponse<BulkAiSummaryResult>> {
+        log.info("시도별 AI 요약 일괄 생성 요청: sidoName={}", sidoName)
+        val result = sidoAISummaryUseCase.execute(sidoName)
         return ResponseEntity.ok(ApiResponse.ok(result))
     }
 

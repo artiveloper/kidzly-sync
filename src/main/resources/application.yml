@@ -47,7 +47,7 @@ telegram:
   chat-id: ${TELEGRAM_CHAT_ID}
 
 ai:
-  provider: groq  # groq | gemini
+  provider: groq  # groq | gemini | ollama
 
 groq:
   api-key: ${GROQ_API_KEY}
@@ -60,6 +60,11 @@ gemini:
   base-url: https://generativelanguage.googleapis.com
   model: gemini-2.0-flash
   request-interval-ms: 4000  # free tier: 15 RPM → 4s 간격
+
+ollama:
+  base-url: http://localhost:11434
+  model: qwen3:14b
+  request-interval-ms: 0
 
 logging:
   level:

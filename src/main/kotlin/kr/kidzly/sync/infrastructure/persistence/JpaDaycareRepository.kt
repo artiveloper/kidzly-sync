@@ -16,6 +16,8 @@ interface JpaDaycareRepository : JpaRepository<Daycare, String> {
 
     fun findAllByStatusAndSyncedAtAfter(status: String, syncedAt: LocalDateTime): List<Daycare>
 
+    fun findAllByStatusAndSidoNameAndAiAnalysisIsNull(status: String, sidoName: String): List<Daycare>
+
     @Modifying
     @Transactional
     @Query(

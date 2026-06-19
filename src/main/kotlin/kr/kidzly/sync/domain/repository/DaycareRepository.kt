@@ -10,6 +10,7 @@ interface DaycareRepository {
     fun findByCode(daycareCode: String): Daycare?
     fun findAllByStatus(status: String): List<Daycare>
     fun findAllByStatusAndAiAnalysisIsNull(status: String): List<Daycare>
+    fun findAllByStatusAndSidoNameAndAiAnalysisIsNull(status: String, sidoName: String): List<Daycare>
     fun findAllByStatusAndSyncedAtAfter(status: String, after: LocalDateTime): List<Daycare>
     fun saveAiAnalysis(daycareCode: String, analysisJson: String)
 }

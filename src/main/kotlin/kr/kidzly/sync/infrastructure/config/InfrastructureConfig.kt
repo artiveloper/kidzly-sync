@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -14,7 +15,6 @@ import org.springframework.web.client.RestClient
 @Configuration
 class InfrastructureConfig(
     private val childcareApiProperties: ChildcareApiProperties,
-    private val groqApiProperties: GroqApiProperties,
 ) {
 
     @Bean
@@ -50,7 +50,8 @@ class InfrastructureConfig(
             .build()
 
     @Bean("groqRestClient")
-    fun groqRestClient(): RestClient =
+    @ConditionalOnProperty(name = ["ai.provider"], havingValue = "groq", matchIfMissing = true)
+    fun groqRestClient(groqApiProperties: GroqApiProperties): RestClient =
         RestClient.builder()
             .baseUrl(groqApiProperties.baseUrl)
             .defaultHeader("Authorization", "Bearer ${groqApiProperties.apiKey}")

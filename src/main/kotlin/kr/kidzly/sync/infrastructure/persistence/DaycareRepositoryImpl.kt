@@ -42,6 +42,10 @@ class DaycareRepositoryImpl(
     override fun findAllByStatusAndSyncedAtAfter(status: String, after: LocalDateTime): List<Daycare> =
         jpaDaycareRepository.findAllByStatusAndSyncedAtAfter(status, after)
 
+    @Transactional(readOnly = true)
+    override fun findAllByStatusAndSidoNameAndAiAnalysisIsNull(status: String, sidoName: String): List<Daycare> =
+        jpaDaycareRepository.findAllByStatusAndSidoNameAndAiAnalysisIsNull(status, sidoName)
+
     @Transactional
     override fun saveAiAnalysis(daycareCode: String, analysisJson: String) {
         jdbcTemplate.update(

@@ -8,6 +8,7 @@ import kr.kidzly.sync.application.usecase.IncrementalDaycaresSummaryUseCase
 import kr.kidzly.sync.domain.entity.SyncHistory
 import kr.kidzly.sync.domain.entity.SyncStatus
 import kr.kidzly.sync.domain.entity.SyncType
+import kr.kidzly.sync.domain.error.DomainError
 import kr.kidzly.sync.domain.repository.DaycareRepository
 import kr.kidzly.sync.domain.repository.SigunguRepository
 import kr.kidzly.sync.domain.repository.SyncHistoryRepository
@@ -43,7 +44,7 @@ class SyncOrchestrator(
 
         fullSyncUseCase.execute().fold(
             ifLeft = { error ->
-                val message = error.toString()
+                val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
                 history.errorMessage = message
                 history.finishedAt = LocalDateTime.now()
@@ -93,7 +94,7 @@ class SyncOrchestrator(
 
         deltaSyncUseCase.execute(targetMonth).fold(
             ifLeft = { error ->
-                val message = error.toString()
+                val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
                 history.errorMessage = message
                 history.finishedAt = LocalDateTime.now()
@@ -223,6 +224,23 @@ class SyncOrchestrator(
                 SyncResult(total = closedDaycares.size, upserted = 0, closed = closedCount)
             },
         )
+    }
+
+    private fun DomainError.toDetailedMessage(): String {
+        val cause = when (this) {
+            is DomainError.NetworkError -> this.cause
+            is DomainError.ParseError -> this.cause
+            is DomainError.Unknown -> this.cause
+            else -> null
+        }
+        return buildString {
+            append(this@toDetailedMessage.toString())
+            var c = cause?.cause
+            while (c != null) {
+                append("\n  Caused by: ${c::class.qualifiedName}: ${c.message}")
+                c = c.cause
+            }
+        }
     }
 
     companion object {

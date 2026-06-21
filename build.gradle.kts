@@ -19,6 +19,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.retry:spring-retry")
     implementation("org.springframework:spring-aspects")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     // Kotlin
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

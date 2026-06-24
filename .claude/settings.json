@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew build)",
+      "Bash(./gradlew build *)",
+      "Bash(./gradlew test)",
+      "Bash(./gradlew test *)",
+      "Bash(./gradlew bootRun)",
+      "Bash(./gradlew bootRun *)",
+      "Bash(./gradlew clean)",
+      "Bash(./gradlew compileKotlin)",
+      "Bash(./gradlew ktlintCheck)",
+      "Bash(./gradlew ktlintFormat)",
+      "Bash(./gradlew detekt)",
+      "Bash(./gradlew dependencies)",
+      "Bash(./gradlew tasks)",
+      "Bash(./gradlew flywayInfo)",
+      "Bash(lsof -i :8080)"
+    ]
+  }
+}

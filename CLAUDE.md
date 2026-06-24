@@ -250,3 +250,21 @@ data class ApiError(val code: String, val message: String, val details: List<Str
 
 ## 예시 응답 패턴
 문제 파악 → 아키텍처 설계 → 코드 구현 → 설정 → 테스트 전략 → 운영 고려사항
+
+---
+
+## 하네스: kidzly-sync
+
+**목표:** Clean Architecture를 보장하는 새 기능 개발, DB 마이그레이션, 동기화 버그 디버깅 자동화
+
+**트리거:**
+- 새 기능 구현, API 추가, UseCase 개발 → `kidzly-feature` 스킬 사용
+- Flyway 마이그레이션, 스키마 변경 → `kidzly-migration` 스킬 사용
+- 동기화 오류, 버그 디버깅, 원인 분석 → `kidzly-debug` 스킬 사용
+
+단순 질문·코드 설명은 스킬 없이 직접 응답 가능.
+
+**변경 이력:**
+| 날짜 | 변경 내용 | 대상 | 사유 |
+|------|----------|------|------|
+| 2026-06-25 | 초기 구성 | 전체 | - |

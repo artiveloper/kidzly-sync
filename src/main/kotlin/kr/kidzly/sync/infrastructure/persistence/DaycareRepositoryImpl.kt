@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 import kr.kidzly.sync.common.nowKst
+import java.time.LocalDateTime
 
 @Repository
 class DaycareRepositoryImpl(

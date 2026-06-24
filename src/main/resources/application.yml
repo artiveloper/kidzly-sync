@@ -47,7 +47,7 @@ telegram:
   chat-id: ${TELEGRAM_CHAT_ID}
 
 ai:
-  provider: groq  # groq | gemini | ollama
+  provider: ollama  # groq | gemini | ollama
 
 groq:
   api-key: ${GROQ_API_KEY}

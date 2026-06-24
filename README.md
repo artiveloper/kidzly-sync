@@ -28,9 +28,11 @@
 | 증분 동기화 (Delta Sync) | 월별 신규 개원/폐지 어린이집만 처리 |
 | 시군구 동기화 | 행정구역 마스터 데이터 최신화 |
 | 수동 트리거 API | REST API를 통한 즉시 동기화 실행 |
-| 자동 스케줄링 | 매주 일요일 03:00 전체 / 매일 02:00 증분 |
+| 배치 실행 (GitHub Actions) | `SYNC_JOB=FULL\|DELTA` 환경변수로 one-shot 배치 실행 |
 | 동기화 이력 관리 | 실행 유형, 처리 건수, 소요 시간, 오류 메시지 기록 |
 | Telegram 알림 | 동기화 성공/실패 결과를 Telegram Bot으로 즉시 알림 |
+| AI 요약 생성 | 어린이집 데이터 기반 AI 요약 생성 (단건/시도별/전체) — Groq·Gemini·Ollama 전환 가능 |
+| 증분 AI 요약 | 증분 동기화 후 신규 어린이집 자동 AI 요약 생성 |
 
 ---
 
@@ -38,7 +40,7 @@
 
 ```
 ┌──────────────────────────────────────────────────┐
-│   Presentation (SyncController, SyncScheduler)   │  REST API, Cron 트리거
+│   Presentation (SyncController, AiSummaryController, SyncJobRunner)   │  REST API, 배치 실행
 ├──────────────────────────────────────────────────┤
 │   Application (SyncOrchestrator, UseCase)        │  동기화 오케스트레이션, 트랜잭션
 ├──────────────────────────────────────────────────┤
@@ -51,11 +53,11 @@
 **데이터 흐름**
 
 ```
-[Scheduler / REST API]
-        │
-   SyncOrchestrator  ─────────────────────────────┐
+[SyncJobRunner / REST API]          [AiSummaryController / REST API]
         │                                         │
-  FullSyncUseCase / DeltaSyncUseCase        TelegramNotifier
+   SyncOrchestrator  ─────────────────────────────┤         AiSummaryPort
+        │                                         │              │
+  FullSyncUseCase / DeltaSyncUseCase        TelegramNotifier  Groq / Gemini / Ollama
         │                                   (성공/실패 알림)
   ChildcareApiPort
         │
@@ -80,6 +82,7 @@
 | 에러 처리 | Arrow-kt `Either<DomainError, A>` |
 | XML 파싱 | Jackson Dataformat XML |
 | 재시도 | Spring Retry (429 응답 시 1분 대기 후 최대 3회) |
+| AI 요약 | Groq API (`openai/gpt-oss-120b`), Gemini 2.0 Flash, Ollama (`qwen3:14b`) — `ai.provider`로 전환 |
 | 알림 | Telegram Bot API |
 | 테스트 | Kotest, MockK |
 | 빌드 | Gradle 8.x (Kotlin DSL) |
@@ -98,6 +101,9 @@
 | `POST /api/v1/sync/daycare-detail` | `arcode` (필수, 예: `11010`) | 특정 시군구 어린이집 상세 동기화 |
 | `POST /api/v1/sync/new-daycare` | `yearMonth` (선택) | 월별 신규 어린이집 동기화 |
 | `POST /api/v1/sync/closed-daycare` | `yearMonth` (선택) | 월별 폐지 어린이집 처리 |
+| `POST /api/v1/daycares/ai-summary` | — | 전체 어린이집 AI 요약 일괄 생성 |
+| `POST /api/v1/daycares/ai-summary/sido` | `sidoName` (필수, 예: `서울특별시`) | 시도별 AI 요약 일괄 생성 |
+| `POST /api/v1/daycares/{daycareCode}/ai-summary` | — | 특정 어린이집 AI 요약 생성 |
 
 **응답 형식**
 
@@ -119,6 +125,7 @@
 - PostgreSQL 15+
 - 공공데이터포털 어린이집 API 키 (4종)
 - Telegram Bot Token & Chat ID
+- AI provider 중 하나: Groq API 키 / Gemini API 키 / Ollama 로컬 서버 (`ai.provider`로 선택)
 
 ### 환경변수 설정
 
@@ -137,6 +144,11 @@ KIZLE_KEY_CLOSED=your_closed_api_key      # cpmsapi019
 # Telegram 알림
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
+
+# AI 요약 (ai.provider 값에 따라 필요한 키만 설정)
+GROQ_API_KEY=your_groq_api_key        # provider=groq 시 필요
+GEMINI_API_KEY=your_gemini_api_key    # provider=gemini 시 필요
+# provider=ollama 시 별도 키 불필요 (로컬 서버 사용)
 ```
 
 ### 실행

@@ -2,8 +2,8 @@ name: Delta Sync (Daily)
 
 on:
   schedule:
-    # 매일 02:00 KST (= 전날 17:00 UTC)
-    - cron: '0 17 * * *'
+    # 매일 05:00 KST (= 전날 20:00 UTC)
+    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       yearMonth:

@@ -15,7 +15,7 @@ import kr.kidzly.sync.domain.repository.SyncHistoryRepository
 import kr.kidzly.sync.infrastructure.notification.TelegramNotifier
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import java.time.LocalDateTime
+import kr.kidzly.sync.common.nowKst
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
@@ -36,7 +36,7 @@ class SyncOrchestrator(
         val history = syncHistoryRepository.save(
             SyncHistory(
                 syncType = SyncType.FULL,
-                startedAt = LocalDateTime.now()
+                startedAt = nowKst()
             ),
         )
 
@@ -47,7 +47,7 @@ class SyncOrchestrator(
                 val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
                 history.errorMessage = message
-                history.finishedAt = LocalDateTime.now()
+                history.finishedAt = nowKst()
                 syncHistoryRepository.save(history)
 
                 log.error("전체 동기화 실패: $message")
@@ -63,7 +63,7 @@ class SyncOrchestrator(
                 history.status = SyncStatus.COMPLETED
                 history.totalCount = result.total
                 history.upsertCount = result.upserted
-                history.finishedAt = LocalDateTime.now()
+                history.finishedAt = nowKst()
                 syncHistoryRepository.save(history)
 
                 val duration = java.time.Duration.between(history.startedAt, history.finishedAt)
@@ -86,7 +86,7 @@ class SyncOrchestrator(
             SyncHistory(
                 syncType = SyncType.DELTA,
                 targetYearMonth = yyyymm,
-                startedAt = LocalDateTime.now(),
+                startedAt = nowKst(),
             ),
         )
 
@@ -97,7 +97,7 @@ class SyncOrchestrator(
                 val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
                 history.errorMessage = message
-                history.finishedAt = LocalDateTime.now()
+                history.finishedAt = nowKst()
                 syncHistoryRepository.save(history)
 
                 log.error("증분 동기화 실패: $message")
@@ -114,7 +114,7 @@ class SyncOrchestrator(
                 history.totalCount = result.total
                 history.upsertCount = result.upserted
                 history.closedCount = result.closed
-                history.finishedAt = LocalDateTime.now()
+                history.finishedAt = nowKst()
                 syncHistoryRepository.save(history)
 
                 log.info("증분 동기화 완료 — upserted=${result.upserted}, closed=${result.closed}")

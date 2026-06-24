@@ -1,6 +1,7 @@
 package kr.kidzly.sync.domain.entity
 
 import jakarta.persistence.*
+import kr.kidzly.sync.common.nowKst
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -155,7 +156,7 @@ class Daycare(
     @Column(name = "waiting_child_total") val waitingChildTotal: Int?,
 
     @Column(name = "synced_at", nullable = false)
-    val syncedAt: LocalDateTime = LocalDateTime.now(),
+    val syncedAt: LocalDateTime = nowKst(),
 ) {
     // AI 요약
     @Column(name = "ai_analysis", columnDefinition = "jsonb")

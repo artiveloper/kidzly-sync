@@ -4,6 +4,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import kr.kidzly.sync.common.nowKst
 import java.time.LocalDateTime
 
 @Entity
@@ -20,5 +21,5 @@ class Sigungu(
     val sigunname: String,
 
     @Column(name = "synced_at", nullable = false)
-    val syncedAt: LocalDateTime = LocalDateTime.now(),
+    val syncedAt: LocalDateTime = nowKst(),
 )

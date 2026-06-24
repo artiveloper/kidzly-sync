@@ -2,8 +2,8 @@ name: Full Sync (Weekly)
 
 on:
   schedule:
-    # 매주 일요일 03:00 KST (= 토요일 18:00 UTC)
-    - cron: '0 18 * * 6'
+    # 매주 일요일 06:00 KST (= 토요일 21:00 UTC)
+    - cron: '0 21 * * 6'
   workflow_dispatch:
 
 jobs:

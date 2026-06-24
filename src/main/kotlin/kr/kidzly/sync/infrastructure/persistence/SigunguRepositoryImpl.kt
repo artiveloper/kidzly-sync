@@ -6,7 +6,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+import kr.kidzly.sync.common.nowKst
 
 @Repository
 class SigunguRepositoryImpl(
@@ -25,7 +25,7 @@ class SigunguRepositoryImpl(
             .addValue("arcode", arcode)
             .addValue("sidoname", sidoname)
             .addValue("sigunname", sigunname)
-            .addValue("syncedAt", LocalDateTime.now())
+            .addValue("syncedAt", nowKst())
 
     companion object {
         private val UPSERT_SQL = """

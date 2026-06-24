@@ -1,6 +1,7 @@
 package kr.kidzly.sync.domain.entity
 
 import jakarta.persistence.*
+import kr.kidzly.sync.common.nowKst
 import java.time.LocalDateTime
 
 @Entity
@@ -34,7 +35,7 @@ class SyncHistory(
     var errorMessage: String? = null,
 
     @Column(name = "started_at", nullable = false)
-    val startedAt: LocalDateTime = LocalDateTime.now(),
+    val startedAt: LocalDateTime = nowKst(),
 
     @Column(name = "finished_at")
     var finishedAt: LocalDateTime? = null,

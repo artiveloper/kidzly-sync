@@ -51,6 +51,18 @@ jobs:
             echo "year_month=$(date -u '+%Y-%m')" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Diagnose runner IP & childcare API connectivity
+        run: |
+          echo "=== Runner public IP / location ==="
+          curl -s --max-time 10 https://ipinfo.io/json || echo "ipinfo lookup failed"
+          echo ""
+          echo "=== TCP connect to api.childcare.go.kr:80 ==="
+          if nc -zv -w 10 api.childcare.go.kr 80; then
+            echo "CONNECT OK"
+          else
+            echo "CONNECT FAILED (timeout = 해외 IP 차단 의심)"
+          fi
+
       - name: Run delta sync
         run: java -jar build/libs/*.jar --spring.profiles.active=prod
         env:

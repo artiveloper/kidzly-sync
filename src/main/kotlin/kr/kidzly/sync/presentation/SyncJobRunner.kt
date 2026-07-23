@@ -27,31 +27,29 @@ class SyncJobRunner(
     override fun run(args: ApplicationArguments) {
         val job = System.getenv("SYNC_JOB") ?: return
 
-        try {
+        val success = try {
             when (job.uppercase()) {
                 "FULL" -> {
                     log.info("=== [BATCH] 전체 동기화 실행 ===")
-                    syncOrchestrator.fullSync()
+                    syncOrchestrator.fullSync(skipIfAlreadySucceededToday = true)
                 }
                 "DELTA" -> {
                     val yearMonth = System.getenv("SYNC_YEAR_MONTH")
                         ?.let { YearMonth.parse(it) }
                         ?: YearMonth.now()
                     log.info("=== [BATCH] 증분 동기화 실행 (대상월=$yearMonth) ===")
-                    syncOrchestrator.deltaSync(yearMonth)
+                    syncOrchestrator.deltaSync(yearMonth, skipIfAlreadySucceededToday = true)
                 }
                 else -> {
                     log.error("알 수 없는 SYNC_JOB 값: $job (FULL 또는 DELTA 만 허용)")
-                    SpringApplication.exit(applicationContext, ExitCodeGenerator { 1 })
-                    return
+                    false
                 }
             }
         } catch (e: Exception) {
             log.error("[BATCH] 동기화 실패", e)
-            SpringApplication.exit(applicationContext, ExitCodeGenerator { 1 })
-            return
+            false
         }
 
-        SpringApplication.exit(applicationContext, ExitCodeGenerator { 0 })
+        SpringApplication.exit(applicationContext, ExitCodeGenerator { if (success) 0 else 1 })
     }
 }

@@ -2,8 +2,9 @@ name: Delta Sync (Daily)
 
 on:
   schedule:
-    # 매일 05:00 KST (= 전날 20:00 UTC)
-    - cron: '0 20 * * *'
+    # 05,07,09,11,13,15,17,19,21시 KST = 20,22,0,2,4,6,8,10,12시 UTC — 2시간 간격, 하루 9회 재시도
+    # (childcare.go.kr가 러너 IP를 차단하는 경우가 있어 성공할 때까지 하루 여러 번 시도. 이미 성공한 날은 앱이 스킵함)
+    - cron: '0 20,22,0,2,4,6,8,10,12 * * *'
   workflow_dispatch:
     inputs:
       yearMonth:

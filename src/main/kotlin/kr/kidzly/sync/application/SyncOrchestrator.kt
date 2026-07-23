@@ -32,7 +32,12 @@ class SyncOrchestrator(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun fullSync() {
+    fun fullSync(skipIfAlreadySucceededToday: Boolean = false): Boolean {
+        if (skipIfAlreadySucceededToday && existsCompletedToday(SyncType.FULL, targetYearMonth = null)) {
+            log.info("오늘 이미 전체 동기화 성공 이력이 있어 스킵합니다.")
+            return true
+        }
+
         val history = syncHistoryRepository.save(
             SyncHistory(
                 syncType = SyncType.FULL,
@@ -42,7 +47,7 @@ class SyncOrchestrator(
 
         log.info("전체 동기화 시작 (id=${history.id})")
 
-        fullSyncUseCase.execute().fold(
+        return fullSyncUseCase.execute().fold(
             ifLeft = { error ->
                 val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
@@ -58,6 +63,7 @@ class SyncOrchestrator(
                     - 오류: $message
                     """.trimIndent(),
                 )
+                false
             },
             ifRight = { result ->
                 history.status = SyncStatus.COMPLETED
@@ -76,12 +82,19 @@ class SyncOrchestrator(
                     - 소요 시간: ${duration.toMinutes()}분 ${duration.toSecondsPart()}초
                     """.trimIndent(),
                 )
+                true
             },
         )
     }
 
-    fun deltaSync(targetMonth: YearMonth = YearMonth.now()) {
+    fun deltaSync(targetMonth: YearMonth = YearMonth.now(), skipIfAlreadySucceededToday: Boolean = false): Boolean {
         val yyyymm = targetMonth.format(DateTimeFormatter.ofPattern("yyyyMM"))
+
+        if (skipIfAlreadySucceededToday && existsCompletedToday(SyncType.DELTA, yyyymm)) {
+            log.info("[$yyyymm] 오늘 이미 증분 동기화 성공 이력이 있어 스킵합니다.")
+            return true
+        }
+
         val history = syncHistoryRepository.save(
             SyncHistory(
                 syncType = SyncType.DELTA,
@@ -92,7 +105,7 @@ class SyncOrchestrator(
 
         log.info("증분 동기화 시작 (id=${history.id}, 대상월=$yyyymm)")
 
-        deltaSyncUseCase.execute(targetMonth).fold(
+        return deltaSyncUseCase.execute(targetMonth).fold(
             ifLeft = { error ->
                 val message = error.toDetailedMessage()
                 history.status = SyncStatus.FAILED
@@ -108,6 +121,7 @@ class SyncOrchestrator(
                     - 오류: $message
                     """.trimIndent(),
                 )
+                false
             },
             ifRight = { result ->
                 history.status = SyncStatus.COMPLETED
@@ -139,8 +153,14 @@ class SyncOrchestrator(
                         """.trimIndent(),
                     )
                 }
+                true
             },
         )
+    }
+
+    private fun existsCompletedToday(syncType: SyncType, targetYearMonth: String?): Boolean {
+        val todayStart = nowKst().toLocalDate().atStartOfDay()
+        return syncHistoryRepository.existsCompleted(syncType, targetYearMonth, todayStart, todayStart.plusDays(1))
     }
 
     /** 시군구 목록 동기화 (cpmsapi020) — sidoname 생략 시 전체 17개 시도 순회 */

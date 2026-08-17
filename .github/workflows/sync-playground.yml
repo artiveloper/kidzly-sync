@@ -1,0 +1,46 @@
+name: Playground Sync (Daily)
+
+on:
+  schedule:
+    # 04,06,08시 KST = 19,21,23시 UTC(전날) — 하루 3회 시도. delta 슬롯과 겹치지 않게 배치.
+    # (이미 성공한 날은 앱이 스킵함)
+    - cron: '0 19,21,23 * * *'
+  workflow_dispatch:
+
+jobs:
+  playground-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Cache Gradle build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+            build
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Write prod config
+        run: echo "${{ secrets.APP_PROD_YML }}" > src/main/resources/application-prod.yml
+
+      - name: Build jar
+        run: ./gradlew bootJar -x test --build-cache
+
+      - name: Run playground sync
+        run: java -jar build/libs/*.jar --spring.profiles.active=prod
+        env:
+          SPRING_MAIN_WEB_APPLICATION_TYPE: none
+          SYNC_JOB: PLAYGROUND
+          SAFEMAP_SERVICE_KEY: ${{ secrets.SAFEMAP_SERVICE_KEY }}

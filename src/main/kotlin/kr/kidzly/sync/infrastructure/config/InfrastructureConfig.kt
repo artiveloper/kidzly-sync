@@ -71,6 +71,38 @@ class InfrastructureConfig(
             .build()
     }
 
+    @Bean("safemapRestClient")
+    fun safemapRestClient(safemapApiProperties: SafemapApiProperties): RestClient {
+        val connectionConfig = ConnectionConfig.custom()
+            .setConnectTimeout(Timeout.ofSeconds(30))
+            .build()
+
+        val connectionManager = PoolingHttpClientConnectionManager()
+        connectionManager.maxTotal = 10
+        connectionManager.defaultMaxPerRoute = 5
+        connectionManager.setDefaultConnectionConfig(connectionConfig)
+
+        val requestConfig = RequestConfig.custom()
+            .setConnectionRequestTimeout(Timeout.ofSeconds(10))
+            .setResponseTimeout(Timeout.ofSeconds(60))
+            .build()
+
+        val httpClient = HttpClients.custom()
+            .setConnectionManager(connectionManager)
+            .setDefaultRequestConfig(requestConfig)
+            .build()
+
+        return RestClient.builder()
+            .baseUrl(safemapApiProperties.baseUrl)
+            .requestFactory(HttpComponentsClientHttpRequestFactory(httpClient))
+            .messageConverters { converters ->
+                // 누락 시 시설명/주소 한글이 ISO-8859-1로 깨진다
+                converters.removeIf { it is StringHttpMessageConverter }
+                converters.add(0, StringHttpMessageConverter(Charsets.UTF_8))
+            }
+            .build()
+    }
+
     @Bean("telegramRestClient")
     fun telegramRestClient(): RestClient =
         RestClient.builder()

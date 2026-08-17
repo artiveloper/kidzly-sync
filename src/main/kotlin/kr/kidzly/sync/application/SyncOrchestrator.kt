@@ -5,6 +5,7 @@ import kr.kidzly.sync.application.port.ChildcareApiPort
 import kr.kidzly.sync.application.usecase.DeltaSyncUseCase
 import kr.kidzly.sync.application.usecase.FullSyncUseCase
 import kr.kidzly.sync.application.usecase.IncrementalDaycaresSummaryUseCase
+import kr.kidzly.sync.application.usecase.PlaygroundFullSyncUseCase
 import kr.kidzly.sync.domain.entity.SyncHistory
 import kr.kidzly.sync.domain.entity.SyncStatus
 import kr.kidzly.sync.domain.entity.SyncType
@@ -24,6 +25,7 @@ class SyncOrchestrator(
     private val fullSyncUseCase: FullSyncUseCase,
     private val deltaSyncUseCase: DeltaSyncUseCase,
     private val incrementalDaycaresSummaryUseCase: IncrementalDaycaresSummaryUseCase,
+    private val playgroundFullSyncUseCase: PlaygroundFullSyncUseCase,
     private val childcareApiPort: ChildcareApiPort,
     private val daycareRepository: DaycareRepository,
     private val sigunguRepository: SigunguRepository,
@@ -153,6 +155,62 @@ class SyncOrchestrator(
                         """.trimIndent(),
                     )
                 }
+                true
+            },
+        )
+    }
+
+    /** 어린이놀이시설 전체 동기화 (safemap.go.kr IF_0007) */
+    fun playgroundSync(skipIfAlreadySucceededToday: Boolean = false): Boolean {
+        if (skipIfAlreadySucceededToday && existsCompletedToday(SyncType.PLAYGROUND, targetYearMonth = null)) {
+            log.info("오늘 이미 놀이시설 동기화 성공 이력이 있어 스킵합니다.")
+            return true
+        }
+
+        val history = syncHistoryRepository.save(
+            SyncHistory(
+                syncType = SyncType.PLAYGROUND,
+                startedAt = nowKst(),
+            ),
+        )
+
+        log.info("놀이시설 동기화 시작 (id=${history.id})")
+
+        return playgroundFullSyncUseCase.execute().fold(
+            ifLeft = { error ->
+                val message = error.toDetailedMessage()
+                history.status = SyncStatus.FAILED
+                history.errorMessage = message
+                history.finishedAt = nowKst()
+                syncHistoryRepository.save(history)
+
+                log.error("놀이시설 동기화 실패: $message")
+                telegramNotifier.sendMessage(
+                    """
+                    ❌ <b>놀이시설 동기화 실패</b>
+                    - 시작: ${history.startedAt.format(DATETIME_FORMAT)}
+                    - 오류: $message
+                    """.trimIndent(),
+                )
+                false
+            },
+            ifRight = { result ->
+                history.status = SyncStatus.COMPLETED
+                history.totalCount = result.total
+                history.upsertCount = result.upserted
+                history.finishedAt = nowKst()
+                syncHistoryRepository.save(history)
+
+                val duration = java.time.Duration.between(history.startedAt, history.finishedAt)
+                log.info("놀이시설 동기화 완료 — total=${result.total}, upserted=${result.upserted}, 소요=${duration.toMinutes()}분")
+                telegramNotifier.sendMessage(
+                    """
+                    ✅ <b>놀이시설 동기화 완료</b>
+                    - 총 처리: ${result.total}개
+                    - Upsert: ${result.upserted}개
+                    - 소요 시간: ${duration.toMinutes()}분 ${duration.toSecondsPart()}초
+                    """.trimIndent(),
+                )
                 true
             },
         )

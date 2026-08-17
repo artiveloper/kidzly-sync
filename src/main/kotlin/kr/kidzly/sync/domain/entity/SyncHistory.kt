@@ -12,7 +12,7 @@ class SyncHistory(
     val id: Long = 0,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "sync_type", length = 10, nullable = false)
+    @Column(name = "sync_type", length = 20, nullable = false)
     val syncType: SyncType,
 
     @Column(name = "target_year_month", length = 7)
@@ -41,5 +41,5 @@ class SyncHistory(
     var finishedAt: LocalDateTime? = null,
 )
 
-enum class SyncType { FULL, DELTA }
+enum class SyncType { FULL, DELTA, PLAYGROUND }
 enum class SyncStatus { RUNNING, COMPLETED, FAILED }

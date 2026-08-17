@@ -16,6 +16,7 @@ import java.time.YearMonth
  *
  * SYNC_JOB=FULL  → fullSync() 실행 후 종료
  * SYNC_JOB=DELTA → deltaSync() 실행 후 종료 (SYNC_YEAR_MONTH=2026-03 로 월 지정 가능)
+ * SYNC_JOB=PLAYGROUND → playgroundSync() 실행 후 종료 (safemap.go.kr 어린이놀이시설)
  */
 @Component
 class SyncJobRunner(
@@ -40,8 +41,12 @@ class SyncJobRunner(
                     log.info("=== [BATCH] 증분 동기화 실행 (대상월=$yearMonth) ===")
                     syncOrchestrator.deltaSync(yearMonth, skipIfAlreadySucceededToday = true)
                 }
+                "PLAYGROUND" -> {
+                    log.info("=== [BATCH] 놀이시설 동기화 실행 ===")
+                    syncOrchestrator.playgroundSync(skipIfAlreadySucceededToday = true)
+                }
                 else -> {
-                    log.error("알 수 없는 SYNC_JOB 값: $job (FULL 또는 DELTA 만 허용)")
+                    log.error("알 수 없는 SYNC_JOB 값: $job (FULL, DELTA, PLAYGROUND 만 허용)")
                     false
                 }
             }

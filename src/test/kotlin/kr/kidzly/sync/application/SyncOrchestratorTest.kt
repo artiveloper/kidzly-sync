@@ -11,6 +11,7 @@ import kr.kidzly.sync.application.port.ChildcareApiPort
 import kr.kidzly.sync.application.usecase.DeltaSyncUseCase
 import kr.kidzly.sync.application.usecase.FullSyncUseCase
 import kr.kidzly.sync.application.usecase.IncrementalDaycaresSummaryUseCase
+import kr.kidzly.sync.application.usecase.PlaygroundFullSyncUseCase
 import kr.kidzly.sync.domain.entity.SyncHistory
 import kr.kidzly.sync.domain.entity.SyncType
 import kr.kidzly.sync.domain.error.DomainError
@@ -25,6 +26,7 @@ class SyncOrchestratorTest : FunSpec({
     fun newOrchestrator(
         fullSyncUseCase: FullSyncUseCase = mockk(),
         deltaSyncUseCase: DeltaSyncUseCase = mockk(),
+        playgroundFullSyncUseCase: PlaygroundFullSyncUseCase = mockk(),
         syncHistoryRepository: SyncHistoryRepository = mockk(),
     ): SyncOrchestrator {
         every { syncHistoryRepository.save(any()) } answers { firstArg() }
@@ -32,6 +34,7 @@ class SyncOrchestratorTest : FunSpec({
             fullSyncUseCase = fullSyncUseCase,
             deltaSyncUseCase = deltaSyncUseCase,
             incrementalDaycaresSummaryUseCase = mockk<IncrementalDaycaresSummaryUseCase>(relaxed = true),
+            playgroundFullSyncUseCase = playgroundFullSyncUseCase,
             childcareApiPort = mockk<ChildcareApiPort>(),
             daycareRepository = mockk<DaycareRepository>(),
             sigunguRepository = mockk<SigunguRepository>(),
@@ -99,6 +102,56 @@ class SyncOrchestratorTest : FunSpec({
         val orchestrator = newOrchestrator(fullSyncUseCase = fullSyncUseCase, syncHistoryRepository = syncHistoryRepository)
 
         val result = orchestrator.fullSync()
+
+        result shouldBe false
+    }
+
+    test("playgroundSync: 오늘 이미 성공했으면 UseCase를 호출하지 않고 true를 반환한다") {
+        val playgroundFullSyncUseCase = mockk<PlaygroundFullSyncUseCase>()
+        val syncHistoryRepository = mockk<SyncHistoryRepository>()
+        every {
+            syncHistoryRepository.existsCompleted(SyncType.PLAYGROUND, null, any(), any())
+        } returns true
+        val orchestrator = newOrchestrator(
+            playgroundFullSyncUseCase = playgroundFullSyncUseCase,
+            syncHistoryRepository = syncHistoryRepository,
+        )
+
+        val result = orchestrator.playgroundSync(skipIfAlreadySucceededToday = true)
+
+        result shouldBe true
+        verify(exactly = 0) { playgroundFullSyncUseCase.execute() }
+    }
+
+    test("playgroundSync: 성공하면 이력에 total/upsert 건수를 기록하고 true를 반환한다") {
+        val playgroundFullSyncUseCase = mockk<PlaygroundFullSyncUseCase>()
+        every { playgroundFullSyncUseCase.execute() } returns Either.Right(SyncResult(total = 84251, upserted = 12))
+        val syncHistoryRepository = mockk<SyncHistoryRepository>()
+        val orchestrator = newOrchestrator(
+            playgroundFullSyncUseCase = playgroundFullSyncUseCase,
+            syncHistoryRepository = syncHistoryRepository,
+        )
+
+        val result = orchestrator.playgroundSync()
+
+        result shouldBe true
+        val saved = mutableListOf<SyncHistory>()
+        verify { syncHistoryRepository.save(capture(saved)) }
+        saved.last().syncType shouldBe SyncType.PLAYGROUND
+        saved.last().totalCount shouldBe 84251
+        saved.last().upsertCount shouldBe 12
+    }
+
+    test("playgroundSync: UseCase가 Unauthorized(Left)를 반환하면 false를 반환한다") {
+        val playgroundFullSyncUseCase = mockk<PlaygroundFullSyncUseCase>()
+        every { playgroundFullSyncUseCase.execute() } returns Either.Left(DomainError.Unauthorized)
+        val syncHistoryRepository = mockk<SyncHistoryRepository>()
+        val orchestrator = newOrchestrator(
+            playgroundFullSyncUseCase = playgroundFullSyncUseCase,
+            syncHistoryRepository = syncHistoryRepository,
+        )
+
+        val result = orchestrator.playgroundSync()
 
         result shouldBe false
     }

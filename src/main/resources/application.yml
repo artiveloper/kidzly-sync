@@ -50,6 +50,14 @@ safemap:
     page-size: 1000
     request-interval-ms: 200
 
+legaldong:
+  api:
+    base-url: https://api.odcloud.kr
+    # 빈 기본값 필수 — FULL/DELTA/PLAYGROUND 배치는 이 키를 주입하지 않으므로 기본값이 없으면 컨텍스트 기동이 실패한다
+    service-key: ${LEGAL_DONG_CODE_SERVICE_KEY:}
+    per-page: 1000
+    request-interval-ms: 200
+
 telegram:
   bot-token: ${TELEGRAM_BOT_TOKEN}
   chat-id: ${TELEGRAM_CHAT_ID}

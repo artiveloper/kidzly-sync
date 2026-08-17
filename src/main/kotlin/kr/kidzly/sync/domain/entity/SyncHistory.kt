@@ -41,5 +41,5 @@ class SyncHistory(
     var finishedAt: LocalDateTime? = null,
 )
 
-enum class SyncType { FULL, DELTA, PLAYGROUND }
+enum class SyncType { FULL, DELTA, PLAYGROUND, SIGUNGU_CODE }
 enum class SyncStatus { RUNNING, COMPLETED, FAILED }

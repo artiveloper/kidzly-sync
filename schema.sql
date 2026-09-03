@@ -1,5 +1,5 @@
 -- kidzly DB 스키마 스냅샷
--- 생성: pg_dump (kidzly-sync Flyway V1~V18 적용 결과, 2026-09-03)
+-- 생성: pg_dump (kidzly-sync Flyway V1~V19 적용 결과, 2026-09-03)
 -- 주의: 손으로 고치지 않는다. 스키마 변경은 마이그레이션으로 하고 이 파일은 재생성한다.
 --       재생성 방법은 README.md "데이터베이스 스키마" 절 참고.
 --       Supabase의 anon/authenticated/service_role 권한은 기본 권한 설정이 처리하므로 덤프에 포함하지 않는다.
@@ -8,7 +8,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict AkVF2tdZ11vl7uP2BombnULDeCyAW0VrgOhO2U0w5jU1N3ManQN22RXUBgQegRz
+\restrict 3Kd6q4G0ZoRfybC2HZDKhehmGdZyzdXqEBRZVLUXBroX1IEI9jHafIbwnFJpglB
 
 
 SET statement_timeout = 0;
@@ -733,8 +733,8 @@ CREATE TABLE public.playgrounds (
     accident_yn character varying(1),
     deleted_yn character varying(1),
     synced_at timestamp without time zone DEFAULT now() NOT NULL,
-    longitude double precision GENERATED ALWAYS AS (degrees(((coord_x)::double precision / (6378137.0)::double precision))) STORED,
-    latitude double precision GENERATED ALWAYS AS (degrees((((2)::double precision * atan(exp(((coord_y)::double precision / (6378137.0)::double precision)))) - (pi() / (2)::double precision)))) STORED
+    longitude double precision GENERATED ALWAYS AS (degrees(((NULLIF(coord_x, (0)::numeric))::double precision / (6378137.0)::double precision))) STORED,
+    latitude double precision GENERATED ALWAYS AS (degrees((((2)::double precision * atan(exp(((NULLIF(coord_y, (0)::numeric))::double precision / (6378137.0)::double precision)))) - (pi() / (2)::double precision)))) STORED
 );
 
 
@@ -887,14 +887,14 @@ COMMENT ON COLUMN public.playgrounds.synced_at IS '마지막 변경 반영 시�
 -- Name: COLUMN playgrounds.longitude; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.playgrounds.longitude IS '경도(WGS84) — coord_x에서 자동 계산, 직접 입력 불가';
+COMMENT ON COLUMN public.playgrounds.longitude IS '경도(WGS84) — coord_x에서 자동 계산, 직접 입력 불가. coord_x=0(좌표 미입력)이면 NULL';
 
 
 --
 -- Name: COLUMN playgrounds.latitude; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.playgrounds.latitude IS '위도(WGS84) — coord_y에서 자동 계산, 직접 입력 불가';
+COMMENT ON COLUMN public.playgrounds.latitude IS '위도(WGS84) — coord_y에서 자동 계산, 직접 입력 불가. coord_y=0(좌표 미입력)이면 NULL';
 
 
 --
@@ -1342,5 +1342,5 @@ CREATE INDEX idx_sync_histories_sync_type ON public.sync_histories USING btree (
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AkVF2tdZ11vl7uP2BombnULDeCyAW0VrgOhO2U0w5jU1N3ManQN22RXUBgQegRz
+\unrestrict 3Kd6q4G0ZoRfybC2HZDKhehmGdZyzdXqEBRZVLUXBroX1IEI9jHafIbwnFJpglB
 

@@ -89,6 +89,52 @@
 
 ---
 
+## 데이터베이스 스키마
+
+**이 저장소가 kidzly DB 스키마의 단일 소유자다.** kidzly.kr(웹)은 읽기만 하며 스키마를 바꾸지 않는다.
+
+웹이 쓰는 객체(`content_stats`, 조회 인덱스, 필터 옵션 뷰)도 여기서 관리한다. 예전에는 Supabase SQL
+에디터에서 손으로 만들어 어떤 이력에도 남지 않았고, 그래서 스키마를 재현할 수 없었다. V17이 이를 편입했다.
+
+| 소비자 | 대상 |
+|--------|------|
+| kidzly-sync | `daycares`, `sigungus`, `sync_histories`, `playgrounds`, `sigungu_codes` |
+| kidzly.kr | `content_stats`, `daycares` 조회 인덱스, `daycare_type_names`·`daycare_service_types` 뷰 |
+
+### 변경 절차
+
+1. `src/main/resources/db/migration/V{n}__{설명}.sql` 추가. 첫머리에 작성 일시·변경 내용·배경을 남긴다.
+2. **운영 DB에 이미 존재하는 객체를 편입하는 마이그레이션은 멱등하게 쓴다** (`IF NOT EXISTS`, `CREATE OR REPLACE`).
+   신규 DB에서는 실제로 생성돼야 하므로 생성문 자체는 빠뜨리지 않는다.
+3. 로컬 검증 — 빈 DB에 V1부터 순서대로 적용해 통과하는지 본다.
+
+   ```bash
+   docker run -d --name kidzly-mig-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=kidzly postgres:16-alpine
+   for f in $(ls src/main/resources/db/migration/V*.sql | sort -V); do
+       docker exec -i kidzly-mig-test psql -U postgres -d kidzly -v ON_ERROR_STOP=1 -q < "$f" || echo "FAILED: $f"
+   done
+   ```
+
+4. `schema.sql` 재생성 — 손으로 고치지 않는다. 위 컨테이너에서 뽑는다.
+
+   ```bash
+   docker exec kidzly-mig-test pg_dump -U postgres -d kidzly        --schema-only --no-owner --no-privileges > schema.sql
+   docker rm -f kidzly-mig-test
+   ```
+
+5. 커밋 → **운영 반영**. Flyway는 앱 부팅 시 돌기 때문에 다음 cron을 기다리거나
+   GitHub Actions에서 아무 동기화 워크플로나 `workflow_dispatch`로 즉시 실행한다.
+6. 웹이 읽는 컬럼이 바뀌었으면 kidzly.kr의 `packages/supabase/src/types.ts`를 갱신한다.
+   **마이그레이션이 운영에 적용된 뒤에 웹을 배포한다** — 두 저장소라 배포 순서는 자동으로 보장되지 않는다.
+
+### 좌표 주의
+
+`playgrounds.coord_x/coord_y`는 safemap.go.kr이 주는 **EPSG:3857 Web Mercator**이며 위경도가 아니다.
+지도에서 쓸 값은 `latitude`/`longitude` 생성 컬럼이다 (V18). 원본에서 DB가 계산하므로 직접 쓸 수 없고,
+`coord_x/coord_y`가 갱신되면 자동으로 따라온다.
+
+---
+
 ## API 명세
 
 모든 엔드포인트는 `POST` 메서드를 사용합니다.

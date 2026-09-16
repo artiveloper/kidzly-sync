@@ -64,3 +64,21 @@ class DatabaseConfig:
                 password=os.environ["DB_PASSWORD"],
             )
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SafemapApiConfig:
+    base_url: str
+    service_key: str
+    """미설정 시 빈 문자열 — 다른 배치의 기동을 막지 않기 위함 (UseCase 진입 시 검사)"""
+    page_size: int = 1000
+    request_interval_ms: int = 200
+
+    @classmethod
+    def from_env(cls) -> SafemapApiConfig:
+        return cls(
+            base_url=os.environ.get("SAFEMAP_BASE_URL", "https://safemap.go.kr"),
+            service_key=os.environ.get("SAFEMAP_SERVICE_KEY", ""),
+            page_size=_env_int("SAFEMAP_PAGE_SIZE", 1000),
+            request_interval_ms=_env_int("SAFEMAP_REQUEST_INTERVAL_MS", 200),
+        )

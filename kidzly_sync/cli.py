@@ -16,10 +16,18 @@ import httpx
 import psycopg
 
 from kidzly_sync.application.orchestrator import SyncOrchestrator
+from kidzly_sync.application.usecase.playground_full_sync import PlaygroundFullSyncUseCase
 from kidzly_sync.application.usecase.sigungu_code_sync import SigunguCodeSyncUseCase
-from kidzly_sync.config import DatabaseConfig, LegalDongCodeApiConfig, TelegramConfig
+from kidzly_sync.config import (
+    DatabaseConfig,
+    LegalDongCodeApiConfig,
+    SafemapApiConfig,
+    TelegramConfig,
+)
 from kidzly_sync.infrastructure.api.legal_dong_code_client import LegalDongCodeApiClient
+from kidzly_sync.infrastructure.api.safemap_client import SafemapApiClient
 from kidzly_sync.infrastructure.notification.telegram import TelegramNotifier
+from kidzly_sync.infrastructure.persistence.playground_repository import PlaygroundRepositoryImpl
 from kidzly_sync.infrastructure.persistence.sigungu_code_repository import SigunguCodeRepositoryImpl
 from kidzly_sync.infrastructure.persistence.sync_history_repository import SyncHistoryRepositoryImpl
 
@@ -37,28 +45,44 @@ def _configure_logging() -> None:
     )
 
 
-def _run_sigungu_code(stack: ExitStack) -> bool:
+def _build_orchestrator(stack: ExitStack) -> SyncOrchestrator:
+    """조립 지점. 서비스 키가 없는 잡의 UseCase 도 함께 만든다 — 키 검사는 실행 시점에 한다."""
     conn = stack.enter_context(psycopg.connect(DatabaseConfig.from_env().conninfo))
     http = stack.enter_context(httpx.Client(timeout=_HTTP_TIMEOUT))
 
     legal_dong_config = LegalDongCodeApiConfig.from_env()
-    use_case = SigunguCodeSyncUseCase(
-        legal_dong_code_api_port=LegalDongCodeApiClient(http, legal_dong_config),
-        sigungu_code_repository=SigunguCodeRepositoryImpl(conn),
-        config=legal_dong_config,
-    )
-    orchestrator = SyncOrchestrator(
-        sigungu_code_sync_use_case=use_case,
+    safemap_config = SafemapApiConfig.from_env()
+
+    return SyncOrchestrator(
+        sigungu_code_sync_use_case=SigunguCodeSyncUseCase(
+            legal_dong_code_api_port=LegalDongCodeApiClient(http, legal_dong_config),
+            sigungu_code_repository=SigunguCodeRepositoryImpl(conn),
+            config=legal_dong_config,
+        ),
+        playground_full_sync_use_case=PlaygroundFullSyncUseCase(
+            safemap_api_port=SafemapApiClient(http, safemap_config),
+            playground_repository=PlaygroundRepositoryImpl(conn),
+            config=safemap_config,
+        ),
         sync_history_repository=SyncHistoryRepositoryImpl(conn),
         telegram_notifier=TelegramNotifier(http, TelegramConfig.from_env()),
     )
+
+
+def _run_sigungu_code(stack: ExitStack) -> bool:
     log.info("=== [BATCH] 법정동코드 동기화 실행 ===")
-    return orchestrator.sigungu_code_sync(skip_if_already_succeeded_today=True)
+    return _build_orchestrator(stack).sigungu_code_sync(skip_if_already_succeeded_today=True)
+
+
+def _run_playground(stack: ExitStack) -> bool:
+    log.info("=== [BATCH] 놀이시설 동기화 실행 ===")
+    return _build_orchestrator(stack).playground_sync(skip_if_already_succeeded_today=True)
 
 
 # 잡이 늘어나면 여기에만 추가한다
 _JOBS: dict[str, Callable[[ExitStack], bool]] = {
     "sigungu-code": _run_sigungu_code,
+    "playground": _run_playground,
 }
 
 

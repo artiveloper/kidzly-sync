@@ -5,13 +5,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from kidzly_sync.application.model import SigunguCodeData
+from kidzly_sync.application.model import PlaygroundData, SigunguCodeData
 from kidzly_sync.domain.entity.sync_history import SyncHistory, SyncType
 
 
 class SigunguCodeRepository(Protocol):
     def upsert_all(self, codes: list[SigunguCodeData]) -> int:
         """변경 감지 가드 포함 UPSERT (code PK 기준). 반환값은 실제로 INSERT/UPDATE 된 행 수."""
+        ...
+
+
+class PlaygroundRepository(Protocol):
+    def upsert_all(self, playgrounds: list[PlaygroundData]) -> int:
+        """변경 감지 가드 포함 UPSERT (facility_id PK 기준). 반환값은 실제로 INSERT/UPDATE 된 행 수."""
         ...
 
 

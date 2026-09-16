@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from kidzly_sync.domain.legal_dong_code import SigunguCodeLevel
 
@@ -46,3 +47,40 @@ class SigunguCodeData:
     sigungu_code: str | None
     emd_code: str | None
     name: str
+
+
+@dataclass(frozen=True, slots=True)
+class PlaygroundData:
+    """어린이놀이시설 1건 (safemap.go.kr IF_0007)."""
+
+    facility_id: str
+    """정규화된 objt_id ("1741.0" → "1741")"""
+    facility_serial_no: str | None
+    sido_code: str | None
+    sigungu_code: str | None
+    emd_code: str | None
+    name: str
+    address: str | None
+    coord_x: Decimal | None
+    """EPSG:3857 Web Mercator X (위경도 아님)"""
+    coord_y: Decimal | None
+    """EPSG:3857 Web Mercator Y (위경도 아님)"""
+    install_date: str | None
+    facility_code1: str | None
+    facility_code2: str | None
+    install_place_code: str | None
+    ownership_code: str | None
+    indoor_outdoor_code: str | None
+    operation_code: str | None
+    accident_yn: str | None
+    deleted_yn: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class PlaygroundPage:
+    """IF_0007 한 페이지 응답."""
+
+    items: list[PlaygroundData]
+    page_no: int
+    num_of_rows: int
+    total_count: int

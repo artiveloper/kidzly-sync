@@ -64,9 +64,10 @@ def history_count(conn) -> int:
         return cur.fetchone()[0]
 
 
-def build(use_case, history_repository, notifier) -> SyncOrchestrator:
+def build(use_case, history_repository, notifier, *, playground=None) -> SyncOrchestrator:
     return SyncOrchestrator(
         sigungu_code_sync_use_case=use_case,
+        playground_full_sync_use_case=playground or StubUseCase(Ok(SyncResult(total=0, upserted=0))),
         sync_history_repository=history_repository,
         telegram_notifier=notifier,
     )
@@ -177,3 +178,47 @@ def test_does_not_skip_when_another_sync_type_succeeded_today(conn, history_repo
     assert build(use_case, history_repository, SpyNotifier()).sigungu_code_sync(True) is True
 
     assert use_case.call_count == 1
+
+
+# ── 잡별 이력 분리 ────────────────────────────────────────────────────────────
+
+
+def test_playground_sync_records_its_own_sync_type(conn, history_repository):
+    notifier = SpyNotifier()
+    playground = StubUseCase(Ok(SyncResult(total=84251, upserted=12)))
+    orchestrator = build(
+        StubUseCase(Ok(SyncResult(total=0, upserted=0))),
+        history_repository,
+        notifier,
+        playground=playground,
+    )
+
+    assert orchestrator.playground_sync() is True
+
+    history = latest_history(conn)
+    assert history["sync_type"] == "PLAYGROUND"
+    assert history["status"] == SyncStatus.COMPLETED.value
+    assert history["total_count"] == 84251
+    assert history["upsert_count"] == 12
+    assert "놀이시설 동기화 완료" in notifier.messages[0]
+
+
+def test_playground_skip_is_judged_separately_from_sigungu_code(conn, history_repository):
+    # 같은 날 법정동코드가 성공해도 놀이시설은 돌아야 한다 — sync_type 별로 판단한다
+    build(
+        StubUseCase(Ok(SyncResult(total=1, upserted=1))), history_repository, SpyNotifier()
+    ).sigungu_code_sync()
+
+    playground = StubUseCase(Ok(SyncResult(total=1, upserted=1)))
+    assert (
+        build(
+            StubUseCase(Ok(SyncResult(total=0, upserted=0))),
+            history_repository,
+            SpyNotifier(),
+            playground=playground,
+        ).playground_sync(True)
+        is True
+    )
+
+    assert playground.call_count == 1
+    assert history_count(conn) == 2

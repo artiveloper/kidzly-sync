@@ -49,3 +49,12 @@ bin/
 src/main/resources/application-local.yml
 src/main/resources/application-prod.yml
 .tokensave
+
+### Python ###
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+# 시크릿은 Infisical 이 단일 출처다. 로컬에 .env 를 두지 않는다
+.env

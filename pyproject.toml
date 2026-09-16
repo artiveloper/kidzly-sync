@@ -1,0 +1,46 @@
+[project]
+name = "kidzly-sync"
+version = "1.0.0"
+description = "공공 API 동기화 배치 — kidzly DB 스키마의 단일 소유자"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "tenacity>=9.0",
+]
+
+[project.optional-dependencies]
+# 마이그레이션 전용. 배치 런타임은 이 그룹 없이 돈다 (CI에서 별도 스텝으로 실행)
+migrations = [
+    "alembic>=1.14",
+]
+
+[project.scripts]
+kidzly-sync = "kidzly_sync.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "testcontainers[postgres]>=4.9",
+    "ruff>=0.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kidzly_sync"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: 실제 PostgreSQL 컨테이너가 필요한 테스트",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

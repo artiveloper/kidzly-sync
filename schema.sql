@@ -1,15 +1,11 @@
--- kidzly DB 스키마 스냅샷
--- 생성: pg_dump (kidzly-sync Flyway V1~V19 적용 결과, 2026-09-03)
--- 주의: 손으로 고치지 않는다. 스키마 변경은 마이그레이션으로 하고 이 파일은 재생성한다.
---       재생성 방법은 README.md "데이터베이스 스키마" 절 참고.
---       Supabase의 anon/authenticated/service_role 권한은 기본 권한 설정이 처리하므로 덤프에 포함하지 않는다.
-
 --
 -- PostgreSQL database dump
 --
 
-\restrict 3Kd6q4G0ZoRfybC2HZDKhehmGdZyzdXqEBRZVLUXBroX1IEI9jHafIbwnFJpglB
+\restrict MZLwNzO7FUbmqsndkkPB6XHfOy66H9USjn2sgdaTlHKOkMchEj0W5WTV4N8192C
 
+-- Dumped from database version 16.15
+-- Dumped by pg_dump version 16.15
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -710,6 +706,146 @@ CREATE VIEW public.daycare_type_names AS
 
 
 --
+-- Name: places; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.places (
+    id bigint NOT NULL,
+    name character varying(100) NOT NULL,
+    summary character varying(40) NOT NULL,
+    rating numeric(2,1),
+    place_type character varying(20) NOT NULL,
+    age_groups text[] DEFAULT '{}'::text[] NOT NULL,
+    indoor_outdoor character varying(10) NOT NULL,
+    is_free boolean NOT NULL,
+    has_parking boolean,
+    opening_hours character varying(200) NOT NULL,
+    closed_days character varying(200) NOT NULL,
+    price_detail character varying(300),
+    parking_detail character varying(300),
+    has_nursing_room boolean,
+    has_diaper_table boolean,
+    address character varying(300) NOT NULL,
+    latitude double precision NOT NULL,
+    longitude double precision NOT NULL,
+    thumbnail_url character varying(500),
+    last_verified_at date NOT NULL,
+    is_published boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT places_age_groups_check CHECK ((age_groups <@ ARRAY['infant'::text, 'toddler'::text, 'preschool'::text, 'elementary'::text])),
+    CONSTRAINT places_indoor_outdoor_check CHECK (((indoor_outdoor)::text = ANY ((ARRAY['indoor'::character varying, 'outdoor'::character varying, 'mixed'::character varying])::text[]))),
+    CONSTRAINT places_latitude_check CHECK (((latitude >= (33)::double precision) AND (latitude <= (39)::double precision))),
+    CONSTRAINT places_longitude_check CHECK (((longitude >= (124)::double precision) AND (longitude <= (132)::double precision))),
+    CONSTRAINT places_place_type_check CHECK (((place_type)::text = ANY ((ARRAY['kids_cafe'::character varying, 'park'::character varying, 'indoor_playground'::character varying, 'museum'::character varying, 'zoo'::character varying, 'library'::character varying, 'cafe'::character varying])::text[]))),
+    CONSTRAINT places_rating_check CHECK (((rating IS NULL) OR ((rating >= (0)::numeric) AND (rating <= (5)::numeric))))
+);
+
+
+--
+-- Name: TABLE places; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.places IS '아이 놀거리 지도 — 운영자 큐레이션 장소. 정부 데이터인 playgrounds 와 별개다';
+
+
+--
+-- Name: COLUMN places.summary; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.summary IS '핀을 누를지 결정하는 한 줄 소개. 시설 나열이 아니라 장소의 성격을 쓴다';
+
+
+--
+-- Name: COLUMN places.rating; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.rating IS '리뷰 평균 0.0~5.0. 확보 전까지 NULL';
+
+
+--
+-- Name: COLUMN places.place_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.place_type IS 'kids_cafe=키즈카페 park=공원 indoor_playground=실내놀이터 museum=체험관·박물관 zoo=동물원·수목원 library=도서관 cafe=카페';
+
+
+--
+-- Name: COLUMN places.age_groups; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.age_groups IS 'infant=영아 toddler=걸음마 preschool=유아 elementary=초등';
+
+
+--
+-- Name: COLUMN places.indoor_outdoor; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.indoor_outdoor IS 'indoor=실내 outdoor=실외 mixed=혼합';
+
+
+--
+-- Name: COLUMN places.has_parking; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.has_parking IS 'NULL 은 아직 확인 안 됨. FALSE(불가)와 구분한다';
+
+
+--
+-- Name: COLUMN places.opening_hours; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.opening_hours IS '요일별로 다르면 한 문자열에 함께 적는다. 요일별 구조화는 추후 과제';
+
+
+--
+-- Name: COLUMN places.has_nursing_room; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.has_nursing_room IS 'NULL 은 아직 확인 안 됨. FALSE(없음)와 구분한다';
+
+
+--
+-- Name: COLUMN places.has_diaper_table; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.has_diaper_table IS 'NULL 은 아직 확인 안 됨. FALSE(없음)와 구분한다';
+
+
+--
+-- Name: COLUMN places.last_verified_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.last_verified_at IS '운영자가 마지막으로 정보를 확인한 날. "N개월 전 확인" 배지의 근거';
+
+
+--
+-- Name: COLUMN places.is_published; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.places.is_published IS 'FALSE 면 작성 중인 초안이라 공개 지도에 노출하지 않는다';
+
+
+--
+-- Name: places_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.places_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: places_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.places_id_seq OWNED BY public.places.id;
+
+
+--
 -- Name: playgrounds; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1130,6 +1266,13 @@ ALTER SEQUENCE public.sync_histories_id_seq OWNED BY public.sync_histories.id;
 
 
 --
+-- Name: places id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.places ALTER COLUMN id SET DEFAULT nextval('public.places_id_seq'::regclass);
+
+
+--
 -- Name: sync_histories id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1150,6 +1293,14 @@ ALTER TABLE ONLY public.content_stats
 
 ALTER TABLE ONLY public.daycares
     ADD CONSTRAINT daycares_pkey PRIMARY KEY (daycare_code);
+
+
+--
+-- Name: places places_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.places
+    ADD CONSTRAINT places_pkey PRIMARY KEY (id);
 
 
 --
@@ -1290,6 +1441,27 @@ CREATE INDEX idx_daycares_status_latlng_float ON public.daycares USING btree (st
 
 
 --
+-- Name: idx_places_bounds; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_places_bounds ON public.places USING btree (is_published, latitude, longitude);
+
+
+--
+-- Name: idx_places_place_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_places_place_type ON public.places USING btree (place_type);
+
+
+--
+-- Name: idx_places_updated_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_places_updated_at ON public.places USING btree (updated_at DESC);
+
+
+--
 -- Name: idx_playgrounds_map_bbox; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1339,8 +1511,21 @@ CREATE INDEX idx_sync_histories_sync_type ON public.sync_histories USING btree (
 
 
 --
+-- Name: places; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.places ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: places places_public_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY places_public_read ON public.places FOR SELECT USING (is_published);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 3Kd6q4G0ZoRfybC2HZDKhehmGdZyzdXqEBRZVLUXBroX1IEI9jHafIbwnFJpglB
+\unrestrict MZLwNzO7FUbmqsndkkPB6XHfOy66H9USjn2sgdaTlHKOkMchEj0W5WTV4N8192C
 

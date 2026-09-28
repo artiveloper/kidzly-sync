@@ -69,18 +69,18 @@ def _build_orchestrator(stack: ExitStack) -> SyncOrchestrator:
     )
 
 
-def _run_sigungu_code(stack: ExitStack) -> bool:
+def _run_sigungu_code(stack: ExitStack, skip_if_already_succeeded_today: bool) -> bool:
     log.info("=== [BATCH] 법정동코드 동기화 실행 ===")
-    return _build_orchestrator(stack).sigungu_code_sync(skip_if_already_succeeded_today=True)
+    return _build_orchestrator(stack).sigungu_code_sync(skip_if_already_succeeded_today)
 
 
-def _run_playground(stack: ExitStack) -> bool:
+def _run_playground(stack: ExitStack, skip_if_already_succeeded_today: bool) -> bool:
     log.info("=== [BATCH] 놀이시설 동기화 실행 ===")
-    return _build_orchestrator(stack).playground_sync(skip_if_already_succeeded_today=True)
+    return _build_orchestrator(stack).playground_sync(skip_if_already_succeeded_today)
 
 
 # 잡이 늘어나면 여기에만 추가한다
-_JOBS: dict[str, Callable[[ExitStack], bool]] = {
+_JOBS: dict[str, Callable[[ExitStack, bool], bool]] = {
     "sigungu-code": _run_sigungu_code,
     "playground": _run_playground,
 }
@@ -91,11 +91,19 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(prog="kidzly-sync", description="kidzly 공공 API 동기화 배치")
     parser.add_argument("job", choices=sorted(_JOBS), help="실행할 동기화 잡")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        # cron 은 성공할 때까지 하루 여러 번 시도하므로 스킵 가드가 기본이다.
+        # 사람이 직접 돌릴 때는 이미 성공했더라도 다시 돌려야 할 때가 있다
+        # (두 구현의 결과 비교, 원본이 바뀐 뒤 재동기화 등).
+        help="오늘 이미 성공했더라도 건너뛰지 않고 실행한다",
+    )
     args = parser.parse_args(argv)
 
     with ExitStack() as stack:
         try:
-            success = _JOBS[args.job](stack)
+            success = _JOBS[args.job](stack, not args.force)
         except Exception:
             log.exception("[BATCH] 동기화 실패")
             return 1

@@ -9,6 +9,12 @@ name: Playground Sync (Python, 검증용)
 # `permissions: id-token: write`가 없으면 토큰 자체가 발급되지 않아 먼저 실패한다.
 on:
   workflow_dispatch:
+    inputs:
+      force:
+        description: '오늘 이미 성공했어도 건너뛰지 않고 실행한다 (두 구현 비교용)'
+        required: false
+        default: true
+        type: boolean
 
 env:
   INFISICAL_DOMAIN: ${{ vars.INFISICAL_DOMAIN || 'https://app.infisical.com' }}
@@ -53,4 +59,4 @@ jobs:
           secret-path: /
 
       - name: Run playground sync
-        run: uv run --frozen kidzly-sync playground
+        run: uv run --frozen kidzly-sync playground ${{ inputs.force && '--force' || '' }}

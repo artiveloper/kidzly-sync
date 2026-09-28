@@ -11,6 +11,8 @@ from collections.abc import Callable
 from datetime import timedelta
 
 from kidzly_sync.application.model import SyncResult
+from kidzly_sync.application.usecase.delta_sync import DeltaSyncUseCase
+from kidzly_sync.application.usecase.full_sync import FullSyncUseCase
 from kidzly_sync.application.usecase.playground_full_sync import PlaygroundFullSyncUseCase
 from kidzly_sync.application.usecase.sigungu_code_sync import SigunguCodeSyncUseCase
 from kidzly_sync.common.time import now_kst
@@ -30,11 +32,15 @@ class SyncOrchestrator:
         self,
         sigungu_code_sync_use_case: SigunguCodeSyncUseCase,
         playground_full_sync_use_case: PlaygroundFullSyncUseCase,
+        full_sync_use_case: FullSyncUseCase,
+        delta_sync_use_case: DeltaSyncUseCase,
         sync_history_repository: SyncHistoryRepository,
         telegram_notifier: TelegramNotifier,
     ) -> None:
         self._sigungu_code_sync_use_case = sigungu_code_sync_use_case
         self._playground_full_sync_use_case = playground_full_sync_use_case
+        self._full_sync_use_case = full_sync_use_case
+        self._delta_sync_use_case = delta_sync_use_case
         self._sync_history_repository = sync_history_repository
         self._telegram_notifier = telegram_notifier
 
@@ -56,20 +62,46 @@ class SyncOrchestrator:
             skip_if_already_succeeded_today,
         )
 
+    def full_sync(self, skip_if_already_succeeded_today: bool = False) -> bool:
+        """어린이집 전체 동기화 (childcare.go.kr)."""
+        return self._run(
+            SyncType.FULL,
+            "전체",
+            self._full_sync_use_case.execute,
+            skip_if_already_succeeded_today,
+        )
+
+    def delta_sync(self, yyyymm: str, skip_if_already_succeeded_today: bool = False) -> bool:
+        """어린이집 증분 동기화 — 당월 신규·폐지분 (childcare.go.kr)."""
+        return self._run(
+            SyncType.DELTA,
+            "증분",
+            lambda: self._delta_sync_use_case.execute(yyyymm),
+            skip_if_already_succeeded_today,
+            target_year_month=yyyymm,
+            success_body=_delta_success_body,
+        )
+
     def _run(
         self,
         sync_type: SyncType,
         label: str,
         execute: Callable[[], Result[DomainError, SyncResult]],
         skip_if_already_succeeded_today: bool,
+        target_year_month: str | None = None,
+        success_body: Callable[[SyncResult, int, int], str] | None = None,
     ) -> bool:
         """이력 한 행의 생애를 관리한다 — RUNNING 으로 열고 COMPLETED/FAILED 로 닫는다."""
-        if skip_if_already_succeeded_today and self._exists_completed_today(sync_type, None):
-            log.info("오늘 이미 %s 동기화 성공 이력이 있어 스킵합니다.", label)
+        suffix = f" ({target_year_month})" if target_year_month else ""
+
+        if skip_if_already_succeeded_today and self._exists_completed_today(sync_type, target_year_month):
+            log.info("%s 동기화는 오늘 이미 성공 이력이 있어 스킵합니다.%s", label, suffix)
             return True
 
-        history = self._sync_history_repository.save(SyncHistory(sync_type=sync_type, started_at=now_kst()))
-        log.info("%s 동기화 시작 (id=%d)", label, history.id)
+        history = self._sync_history_repository.save(
+            SyncHistory(sync_type=sync_type, target_year_month=target_year_month, started_at=now_kst())
+        )
+        log.info("%s 동기화 시작 (id=%d)%s", label, history.id, suffix)
 
         result = execute()
 
@@ -82,7 +114,7 @@ class SyncOrchestrator:
 
             log.error("%s 동기화 실패: %s", label, message)
             self._telegram_notifier.send_message(
-                f"❌ <b>{label} 동기화 실패</b>\n"
+                f"❌ <b>{label} 동기화 실패</b>{suffix}\n"
                 f"- 시작: {history.started_at.strftime(DATETIME_FORMAT)}\n"
                 f"- 오류: {message}"
             )
@@ -92,6 +124,7 @@ class SyncOrchestrator:
         history.status = SyncStatus.COMPLETED
         history.total_count = sync_result.total
         history.upsert_count = sync_result.upserted
+        history.closed_count = sync_result.closed
         history.finished_at = now_kst()
         self._sync_history_repository.save(history)
 
@@ -103,12 +136,8 @@ class SyncOrchestrator:
             sync_result.upserted,
             minutes,
         )
-        self._telegram_notifier.send_message(
-            f"✅ <b>{label} 동기화 완료</b>\n"
-            f"- 총 처리: {sync_result.total}개\n"
-            f"- Upsert: {sync_result.upserted}개\n"
-            f"- 소요 시간: {minutes}분 {seconds}초"
-        )
+        body = (success_body or _default_success_body)(sync_result, minutes, seconds)
+        self._telegram_notifier.send_message(f"✅ <b>{label} 동기화 완료</b>{suffix}\n{body}")
         return True
 
     def _exists_completed_today(self, sync_type: SyncType, target_year_month: str | None) -> bool:
@@ -122,3 +151,12 @@ def _minutes_and_seconds(duration: timedelta) -> tuple[int, int]:
     """``Duration.toMinutes()`` / ``toSecondsPart()`` 와 같은 분해."""
     total_seconds = int(duration.total_seconds())
     return total_seconds // 60, total_seconds % 60
+
+
+def _default_success_body(result: SyncResult, minutes: int, seconds: int) -> str:
+    return f"- 총 처리: {result.total}개\n- Upsert: {result.upserted}개\n- 소요 시간: {minutes}분 {seconds}초"
+
+
+def _delta_success_body(result: SyncResult, minutes: int, seconds: int) -> str:
+    """증분은 신규/폐지 건수가 관심사라 총계·소요시간 대신 그것을 싣는다."""
+    return f"- 신규 upsert: {result.upserted}개\n- 폐지 처리: {result.closed}개"

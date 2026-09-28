@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from kidzly_sync.application.model import PlaygroundData, SigunguCodeData
+from kidzly_sync.application.model import (
+    DaycareData,
+    PlaygroundData,
+    SigunguCodeData,
+    SigunguInfo,
+)
 from kidzly_sync.domain.entity.sync_history import SyncHistory, SyncType
 
 
@@ -18,6 +23,22 @@ class SigunguCodeRepository(Protocol):
 class PlaygroundRepository(Protocol):
     def upsert_all(self, playgrounds: list[PlaygroundData]) -> int:
         """변경 감지 가드 포함 UPSERT (facility_id PK 기준). 반환값은 실제로 INSERT/UPDATE 된 행 수."""
+        ...
+
+
+class DaycareRepository(Protocol):
+    def upsert_all(self, daycares: list[DaycareData]) -> int:
+        """변경 감지 가드 포함 UPSERT (daycare_code PK 기준)."""
+        ...
+
+    def mark_as_closed(self, daycare_code: str, abolished_date: str | None) -> int:
+        """상태를 '폐지'로 바꾼다. 반환값은 실제로 바뀐 행 수 (없는 코드면 0)."""
+        ...
+
+
+class SigunguRepository(Protocol):
+    def upsert_all(self, sigungus: list[SigunguInfo]) -> int:
+        """변경 감지 가드 없는 UPSERT (arcode PK 기준)."""
         ...
 
 

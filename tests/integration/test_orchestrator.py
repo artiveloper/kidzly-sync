@@ -50,7 +50,8 @@ def history_repository(conn):
 def latest_history(conn) -> dict:
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id, sync_type, status, total_count, upsert_count, error_message, finished_at"
+            "SELECT id, sync_type, target_year_month, status, total_count, upsert_count,"
+            " closed_count, error_message, finished_at"
             " FROM sync_histories ORDER BY id DESC LIMIT 1"
         )
         row = cur.fetchone()
@@ -64,10 +65,15 @@ def history_count(conn) -> int:
         return cur.fetchone()[0]
 
 
-def build(use_case, history_repository, notifier, *, playground=None) -> SyncOrchestrator:
+def build(
+    use_case, history_repository, notifier, *, playground=None, full=None, delta=None
+) -> SyncOrchestrator:
+    idle = lambda: StubUseCase(Ok(SyncResult(total=0, upserted=0)))  # noqa: E731
     return SyncOrchestrator(
         sigungu_code_sync_use_case=use_case,
-        playground_full_sync_use_case=playground or StubUseCase(Ok(SyncResult(total=0, upserted=0))),
+        playground_full_sync_use_case=playground or idle(),
+        full_sync_use_case=full or idle(),
+        delta_sync_use_case=delta or idle(),
         sync_history_repository=history_repository,
         telegram_notifier=notifier,
     )
@@ -222,3 +228,118 @@ def test_playground_skip_is_judged_separately_from_sigungu_code(conn, history_re
 
     assert playground.call_count == 1
     assert history_count(conn) == 2
+
+
+# ── 전체 동기화 ───────────────────────────────────────────────────────────────
+
+
+def test_full_sync_records_its_own_sync_type(conn, history_repository):
+    notifier = SpyNotifier()
+    full = StubUseCase(Ok(SyncResult(total=39000, upserted=120)))
+
+    assert (
+        build(StubUseCase(Ok(SyncResult(0, 0))), history_repository, notifier, full=full).full_sync() is True
+    )
+
+    history = latest_history(conn)
+    assert history["sync_type"] == "FULL"
+    assert history["total_count"] == 39000
+    assert history["upsert_count"] == 120
+    assert "전체 동기화 완료" in notifier.messages[0]
+
+
+# ── 증분 동기화 ───────────────────────────────────────────────────────────────
+
+
+class StubDeltaUseCase:
+    """delta 의 execute 는 대상월을 인자로 받는다."""
+
+    def __init__(self, result) -> None:
+        self._result = result
+        self.calls: list[str] = []
+
+    def execute(self, yyyymm: str):
+        self.calls.append(yyyymm)
+        return self._result
+
+
+def test_delta_sync_records_the_target_month_and_the_closed_count(conn, history_repository):
+    notifier = SpyNotifier()
+    delta = StubDeltaUseCase(Ok(SyncResult(total=12, upserted=7, closed=5)))
+
+    assert (
+        build(StubUseCase(Ok(SyncResult(0, 0))), history_repository, notifier, delta=delta).delta_sync(
+            "202603"
+        )
+        is True
+    )
+
+    assert delta.calls == ["202603"]
+    history = latest_history(conn)
+    assert history["sync_type"] == "DELTA"
+    assert history["target_year_month"] == "202603"
+    assert history["total_count"] == 12
+    assert history["upsert_count"] == 7
+    assert history["closed_count"] == 5
+    # 증분 알림은 총계·소요시간 대신 신규/폐지 건수를 싣는다
+    assert "증분 동기화 완료" in notifier.messages[0]
+    assert "(202603)" in notifier.messages[0]
+    assert "신규 upsert: 7개" in notifier.messages[0]
+    assert "폐지 처리: 5개" in notifier.messages[0]
+
+
+def test_delta_skip_is_judged_per_target_month(conn, history_repository):
+    # 3월분이 오늘 성공했어도 4월분은 돌아야 한다
+    build(
+        StubUseCase(Ok(SyncResult(0, 0))),
+        history_repository,
+        SpyNotifier(),
+        delta=StubDeltaUseCase(Ok(SyncResult(1, 1))),
+    ).delta_sync("202603")
+
+    april = StubDeltaUseCase(Ok(SyncResult(1, 1)))
+    assert (
+        build(StubUseCase(Ok(SyncResult(0, 0))), history_repository, SpyNotifier(), delta=april).delta_sync(
+            "202604", True
+        )
+        is True
+    )
+
+    assert april.calls == ["202604"]
+    assert history_count(conn) == 2
+
+
+def test_delta_skips_the_same_month_that_already_succeeded_today(conn, history_repository):
+    build(
+        StubUseCase(Ok(SyncResult(0, 0))),
+        history_repository,
+        SpyNotifier(),
+        delta=StubDeltaUseCase(Ok(SyncResult(1, 1))),
+    ).delta_sync("202603")
+
+    again = StubDeltaUseCase(Ok(SyncResult(1, 1)))
+    assert (
+        build(StubUseCase(Ok(SyncResult(0, 0))), history_repository, SpyNotifier(), delta=again).delta_sync(
+            "202603", True
+        )
+        is True
+    )
+
+    assert again.calls == []
+    assert history_count(conn) == 1
+
+
+def test_delta_failure_message_carries_the_target_month(conn, history_repository):
+    notifier = SpyNotifier()
+    delta = StubDeltaUseCase(Err(domain_error.Unauthorized()))
+
+    assert (
+        build(StubUseCase(Ok(SyncResult(0, 0))), history_repository, notifier, delta=delta).delta_sync(
+            "202603"
+        )
+        is False
+    )
+
+    assert latest_history(conn)["status"] == SyncStatus.FAILED.value
+    assert "증분 동기화 실패" in notifier.messages[0]
+    assert "(202603)" in notifier.messages[0]

@@ -82,3 +82,31 @@ class SafemapApiConfig:
             page_size=_env_int("SAFEMAP_PAGE_SIZE", 1000),
             request_interval_ms=_env_int("SAFEMAP_REQUEST_INTERVAL_MS", 200),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ChildcareApiConfig:
+    """childcare.go.kr — API 마다 인증키가 다르다 (cpmsapi018/019/020/030)."""
+
+    base_url: str
+    key_sigungu: str
+    key_daycare_detail: str
+    key_new_daycare: str
+    key_closed_daycare: str
+    retry_max_attempts: int = 3
+    retry_delay_ms: int = 60_000
+    """429 응답 시 1분 대기"""
+    request_interval_ms: int = 200
+
+    @classmethod
+    def from_env(cls) -> ChildcareApiConfig:
+        return cls(
+            base_url=os.environ.get("CHILDCARE_BASE_URL", "http://api.childcare.go.kr"),
+            key_sigungu=os.environ.get("KIZLE_KEY_SIGUNGU", ""),
+            key_daycare_detail=os.environ.get("KIZLE_KEY_DETAIL", ""),
+            key_new_daycare=os.environ.get("KIZLE_KEY_NEW", ""),
+            key_closed_daycare=os.environ.get("KIZLE_KEY_CLOSED", ""),
+            retry_max_attempts=_env_int("CHILDCARE_RETRY_MAX_ATTEMPTS", 3),
+            retry_delay_ms=_env_int("CHILDCARE_RETRY_DELAY_MS", 60_000),
+            request_interval_ms=_env_int("CHILDCARE_REQUEST_INTERVAL_MS", 200),
+        )

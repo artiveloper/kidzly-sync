@@ -84,3 +84,116 @@ class PlaygroundPage:
     page_no: int
     num_of_rows: int
     total_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SigunguInfo:
+    """cpmsapi020 시군구 1건."""
+
+    arcode: str
+    sidoname: str
+    sigunname: str
+
+
+@dataclass(frozen=True, slots=True)
+class NewDaycareInfo:
+    """cpmsapi018 월별 신규 어린이집 1건."""
+
+    daycare_code: str
+    sigungu_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class ClosedDaycareInfo:
+    """cpmsapi019 월별 폐지 어린이집 1건."""
+
+    daycare_code: str
+    abolished_date: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class DaycareData:
+    """cpmsapi030 어린이집 상세 1건 — ``daycares`` 쓰기 모델.
+
+    필드명이 DB 컬럼명과 1:1로 같다. 컬럼이 73개라
+    :mod:`kidzly_sync.infrastructure.persistence.daycare_repository` 가 이 이름으로
+    UPSERT SQL 을 만든다 — 이름을 바꾸면 SQL 도 같이 바뀐다.
+    """
+
+    daycare_code: str
+    sigungu_code: str
+    sido_name: str | None
+    sigungu_name: str | None
+    name: str
+    type_name: str | None
+    status: str | None
+    zip_code: str | None
+    address: str | None
+    phone: str | None
+    fax: str | None
+    homepage: str | None
+    latitude: str | None
+    longitude: str | None
+    capacity: int | None
+    current_child_count: int | None
+    nursery_room_count: int | None
+    nursery_room_size: Decimal | None
+    playground_count: int | None
+    cctv_count: int | None
+    childcare_staff_count: int | None
+    vehicle_operation: str | None
+    representative_name: str | None
+    certified_date: str | None
+    pause_start_date: str | None
+    pause_end_date: str | None
+    abolished_date: str | None
+    data_standard_date: str | None
+    services: str | None
+    # 반수 (연령별)
+    class_count_age_0: int | None
+    class_count_age_1: int | None
+    class_count_age_2: int | None
+    class_count_age_3: int | None
+    class_count_age_4: int | None
+    class_count_age_5: int | None
+    class_count_infant_mixed: int | None
+    class_count_child_mixed: int | None
+    class_count_special: int | None
+    class_count_total: int | None
+    # 아동수 (연령별)
+    child_count_age_0: int | None
+    child_count_age_1: int | None
+    child_count_age_2: int | None
+    child_count_age_3: int | None
+    child_count_age_4: int | None
+    child_count_age_5: int | None
+    child_count_infant_mixed: int | None
+    child_count_child_mixed: int | None
+    child_count_special: int | None
+    child_count_total: int | None
+    # 교직원 근속년수
+    staff_tenure_under_1y: float | None
+    staff_tenure_1y_to_2y: float | None
+    staff_tenure_2y_to_4y: float | None
+    staff_tenure_4y_to_6y: float | None
+    staff_tenure_over_6y: float | None
+    # 교직원 직종별
+    staff_director_count: int | None
+    staff_teacher_count: int | None
+    staff_special_teacher_count: int | None
+    staff_therapist_count: int | None
+    staff_nutritionist_count: int | None
+    staff_nurse_count: int | None
+    staff_nursing_assistant_count: int | None
+    staff_cook_count: int | None
+    staff_office_count: int | None
+    staff_total: int | None
+    # 입소대기 아동수
+    waiting_child_age_0: int | None
+    waiting_child_age_1: int | None
+    waiting_child_age_2: int | None
+    waiting_child_age_3: int | None
+    waiting_child_age_4: int | None
+    waiting_child_age_5: int | None
+    waiting_child_age_over_6: int | None
+    waiting_child_total: int | None

@@ -35,6 +35,14 @@ class DaycareRepository(Protocol):
         """상태를 '폐지'로 바꾼다. 반환값은 실제로 바뀐 행 수 (없는 코드면 0)."""
         ...
 
+    def find_all_by_status_and_synced_at_after(self, status: str, after: datetime) -> list[DaycareData]:
+        """AI 요약 생성 대상 조회 — 상태가 일치하고 ``after`` 이후 동기화된 건."""
+        ...
+
+    def save_ai_analysis(self, daycare_code: str, analysis_json: str) -> None:
+        """``ai_analysis`` jsonb 컬럼에 저장한다."""
+        ...
+
 
 class SigunguRepository(Protocol):
     def upsert_all(self, sigungus: list[SigunguInfo]) -> int:

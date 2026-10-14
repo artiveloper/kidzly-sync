@@ -10,7 +10,7 @@ from datetime import timedelta
 
 import pytest
 
-from kidzly_sync.application.model import SyncResult
+from kidzly_sync.application.model import BulkAiSummaryResult, SyncResult
 from kidzly_sync.application.orchestrator import SyncOrchestrator
 from kidzly_sync.common.time import now_kst
 from kidzly_sync.domain import error as domain_error
@@ -65,15 +65,36 @@ def history_count(conn) -> int:
         return cur.fetchone()[0]
 
 
+class StubIncrementalSummaryUseCase:
+    """어린이집 증분 AI 요약 생성의 대상 ``execute`` 는 기준시각을 인자로 받는다."""
+
+    def __init__(self, result) -> None:
+        self._result = result
+        self.calls: list[object] = []
+
+    def execute(self, since):
+        self.calls.append(since)
+        return self._result
+
+
 def build(
-    use_case, history_repository, notifier, *, playground=None, full=None, delta=None
+    use_case,
+    history_repository,
+    notifier,
+    *,
+    playground=None,
+    full=None,
+    delta=None,
+    incremental_summary=None,
 ) -> SyncOrchestrator:
     idle = lambda: StubUseCase(Ok(SyncResult(total=0, upserted=0)))  # noqa: E731
+    idle_summary = lambda: StubIncrementalSummaryUseCase(BulkAiSummaryResult(0, 0, 0))  # noqa: E731
     return SyncOrchestrator(
         sigungu_code_sync_use_case=use_case,
         playground_full_sync_use_case=playground or idle(),
         full_sync_use_case=full or idle(),
         delta_sync_use_case=delta or idle(),
+        incremental_daycares_summary_use_case=incremental_summary or idle_summary(),
         sync_history_repository=history_repository,
         telegram_notifier=notifier,
     )
@@ -343,3 +364,68 @@ def test_delta_failure_message_carries_the_target_month(conn, history_repository
     assert latest_history(conn)["status"] == SyncStatus.FAILED.value
     assert "증분 동기화 실패" in notifier.messages[0]
     assert "(202603)" in notifier.messages[0]
+
+
+# ── 증분 AI 요약 ──────────────────────────────────────────────────────────────
+
+
+def test_delta_sync_triggers_ai_summary_when_upserted_is_positive(conn, history_repository):
+    notifier = SpyNotifier()
+    delta = StubDeltaUseCase(Ok(SyncResult(total=12, upserted=7, closed=0)))
+    summary = StubIncrementalSummaryUseCase(
+        BulkAiSummaryResult(total_count=7, success_count=6, failed_count=1)
+    )
+
+    assert (
+        build(
+            StubUseCase(Ok(SyncResult(0, 0))),
+            history_repository,
+            notifier,
+            delta=delta,
+            incremental_summary=summary,
+        ).delta_sync("202603")
+        is True
+    )
+
+    assert len(summary.calls) == 1
+    assert "증분 AI 요약 생성 완료" in notifier.messages[1]
+    assert "성공: 6개" in notifier.messages[1]
+    assert "실패: 1개" in notifier.messages[1]
+
+
+def test_delta_sync_skips_ai_summary_when_nothing_was_upserted(conn, history_repository):
+    notifier = SpyNotifier()
+    delta = StubDeltaUseCase(Ok(SyncResult(total=3, upserted=0, closed=3)))
+    summary = StubIncrementalSummaryUseCase(BulkAiSummaryResult(0, 0, 0))
+
+    assert (
+        build(
+            StubUseCase(Ok(SyncResult(0, 0))),
+            history_repository,
+            notifier,
+            delta=delta,
+            incremental_summary=summary,
+        ).delta_sync("202603")
+        is True
+    )
+
+    assert summary.calls == []
+    assert len(notifier.messages) == 1
+
+
+def test_ai_summary_uses_the_delta_runs_started_at_as_the_since_checkpoint(conn, history_repository):
+    delta = StubDeltaUseCase(Ok(SyncResult(total=1, upserted=1, closed=0)))
+    summary = StubIncrementalSummaryUseCase(BulkAiSummaryResult(1, 1, 0))
+
+    build(
+        StubUseCase(Ok(SyncResult(0, 0))),
+        history_repository,
+        SpyNotifier(),
+        delta=delta,
+        incremental_summary=summary,
+    ).delta_sync("202603")
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT started_at FROM sync_histories ORDER BY id DESC LIMIT 1")
+        started_at = cur.fetchone()[0]
+    assert summary.calls == [started_at]

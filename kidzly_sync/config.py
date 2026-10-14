@@ -110,3 +110,61 @@ class ChildcareApiConfig:
             retry_delay_ms=_env_int("CHILDCARE_RETRY_DELAY_MS", 60_000),
             request_interval_ms=_env_int("CHILDCARE_REQUEST_INTERVAL_MS", 200),
         )
+
+
+def ai_provider_from_env() -> str:
+    """``ai.provider`` 를 대신한다 — groq / gemini / ollama, 기본 groq."""
+    return os.environ.get("AI_PROVIDER", "groq")
+
+
+@dataclass(frozen=True, slots=True)
+class GeminiApiConfig:
+    api_key: str
+    """미설정 시 빈 문자열 — 다른 배치의 기동을 막지 않기 위함 (UseCase 진입 시 검사)"""
+    base_url: str = "https://generativelanguage.googleapis.com"
+    model: str = "gemini-2.0-flash"
+    request_interval_ms: int = 4_000
+
+    @classmethod
+    def from_env(cls) -> GeminiApiConfig:
+        return cls(
+            api_key=os.environ.get("GEMINI_API_KEY", ""),
+            base_url=os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"),
+            model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            request_interval_ms=_env_int("GEMINI_REQUEST_INTERVAL_MS", 4_000),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class GroqApiConfig:
+    api_key: str
+    """미설정 시 빈 문자열 — 다른 배치의 기동을 막지 않기 위함 (UseCase 진입 시 검사)"""
+    base_url: str = "https://api.groq.com"
+    model: str = "openai/gpt-oss-120b"
+    """application.yml 에 고정된 실제 운영 모델 — Kotlin 클래스 기본값(llama-3.3-70b-versatile)과 다르다"""
+    request_interval_ms: int = 20_000
+
+    @classmethod
+    def from_env(cls) -> GroqApiConfig:
+        return cls(
+            api_key=os.environ.get("GROQ_API_KEY", ""),
+            base_url=os.environ.get("GROQ_BASE_URL", "https://api.groq.com"),
+            model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
+            request_interval_ms=_env_int("GROQ_REQUEST_INTERVAL_MS", 20_000),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaApiConfig:
+    base_url: str = "http://localhost:11434"
+    model: str = "qwen3:14b"
+    """application.yml 에 고정된 실제 운영 모델 — Kotlin 클래스 기본값(qwen3:8b)과 다르다"""
+    request_interval_ms: int = 0
+
+    @classmethod
+    def from_env(cls) -> OllamaApiConfig:
+        return cls(
+            base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
+            model=os.environ.get("OLLAMA_MODEL", "qwen3:14b"),
+            request_interval_ms=_env_int("OLLAMA_REQUEST_INTERVAL_MS", 0),
+        )

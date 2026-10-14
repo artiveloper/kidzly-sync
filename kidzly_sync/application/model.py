@@ -112,6 +112,22 @@ class ClosedDaycareInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class DaycareSummary:
+    """AI 가 생성한 어린이집 요약 — ``daycares.ai_analysis`` 쓰기 모델."""
+
+    summary: str
+    who_may_be_interested: list[str]
+    things_to_consider: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class BulkAiSummaryResult:
+    total_count: int
+    success_count: int
+    failed_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class DaycareData:
     """cpmsapi030 어린이집 상세 1건 — ``daycares`` 쓰기 모델.
 

@@ -7,6 +7,7 @@ from typing import Protocol
 from kidzly_sync.application.model import (
     ClosedDaycareInfo,
     DaycareData,
+    DaycareSummary,
     LegalDongCodePage,
     NewDaycareInfo,
     PlaygroundPage,
@@ -49,4 +50,15 @@ class ChildcareApiPort(Protocol):
 
     def fetch_closed_daycares(self, yyyymm: str) -> Result[DomainError, list[ClosedDaycareInfo]]:
         """월별 폐지시설 목록 조회 (cpmsapi019)."""
+        ...
+
+
+class AiSummaryPort(Protocol):
+    """어린이집 AI 요약 생성 (Groq / Gemini / Ollama — ``ai.provider`` 로 택일)."""
+
+    request_interval_ms: int
+    """호출 사이 대기 시간 — provider 별 rate limit 에 맞춘 값."""
+
+    def generate_summary(self, daycare: DaycareData) -> Result[DomainError, DaycareSummary]:
+        """운영 데이터를 바탕으로 부모 관점 요약을 생성한다."""
         ...

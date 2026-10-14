@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
+from datetime import datetime
 
 import psycopg
 
@@ -50,6 +51,15 @@ MARK_AS_CLOSED_SQL = """
     WHERE daycare_code = %(daycare_code)s
 """
 
+FIND_BY_STATUS_AND_SYNCED_AT_AFTER_SQL = f"""
+    SELECT {", ".join(ALL_COLUMNS)} FROM daycares
+    WHERE status = %(status)s AND synced_at > %(after)s
+"""
+
+SAVE_AI_ANALYSIS_SQL = """
+    UPDATE daycares SET ai_analysis = CAST(%(analysis_json)s AS jsonb) WHERE daycare_code = %(daycare_code)s
+"""
+
 
 class DaycareRepositoryImpl:
     def __init__(self, conn: psycopg.Connection) -> None:
@@ -71,3 +81,12 @@ class DaycareRepositoryImpl:
                 {"daycare_code": daycare_code, "abolished_date": abolished_date},
             )
             return cur.rowcount
+
+    def find_all_by_status_and_synced_at_after(self, status: str, after: datetime) -> list[DaycareData]:
+        with self._conn.cursor() as cur:
+            cur.execute(FIND_BY_STATUS_AND_SYNCED_AT_AFTER_SQL, {"status": status, "after": after})
+            return [DaycareData(**dict(zip(ALL_COLUMNS, row, strict=True))) for row in cur.fetchall()]
+
+    def save_ai_analysis(self, daycare_code: str, analysis_json: str) -> None:
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute(SAVE_AI_ANALYSIS_SQL, {"daycare_code": daycare_code, "analysis_json": analysis_json})

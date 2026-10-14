@@ -18,17 +18,28 @@ import httpx
 import psycopg
 
 from kidzly_sync.application.orchestrator import SyncOrchestrator
+from kidzly_sync.application.port import AiSummaryPort
 from kidzly_sync.application.usecase.delta_sync import DeltaSyncUseCase
 from kidzly_sync.application.usecase.full_sync import FullSyncUseCase
+from kidzly_sync.application.usecase.incremental_daycares_summary import (
+    IncrementalDaycaresSummaryUseCase,
+)
 from kidzly_sync.application.usecase.playground_full_sync import PlaygroundFullSyncUseCase
 from kidzly_sync.application.usecase.sigungu_code_sync import SigunguCodeSyncUseCase
 from kidzly_sync.config import (
     ChildcareApiConfig,
     DatabaseConfig,
+    GeminiApiConfig,
+    GroqApiConfig,
     LegalDongCodeApiConfig,
+    OllamaApiConfig,
     SafemapApiConfig,
     TelegramConfig,
+    ai_provider_from_env,
 )
+from kidzly_sync.infrastructure.ai.gemini_client import GeminiApiClient
+from kidzly_sync.infrastructure.ai.groq_client import GroqApiClient
+from kidzly_sync.infrastructure.ai.ollama_client import OllamaApiClient
 from kidzly_sync.infrastructure.api.childcare_client import ChildcareApiClient
 from kidzly_sync.infrastructure.api.legal_dong_code_client import LegalDongCodeApiClient
 from kidzly_sync.infrastructure.api.safemap_client import SafemapApiClient
@@ -51,6 +62,16 @@ def _configure_logging() -> None:
         format="%(asctime)s %(levelname)-5s %(name)s - %(message)s",
         stream=sys.stdout,
     )
+
+
+def _build_ai_summary_port(http: httpx.Client) -> AiSummaryPort:
+    """``ai.provider`` 를 대신한다 — groq 가 기본값이다 (Kotlin ``matchIfMissing = true``)."""
+    provider = ai_provider_from_env()
+    if provider == "gemini":
+        return GeminiApiClient(http, GeminiApiConfig.from_env())
+    if provider == "ollama":
+        return OllamaApiClient(http, OllamaApiConfig.from_env())
+    return GroqApiClient(http, GroqApiConfig.from_env())
 
 
 def _build_orchestrator(stack: ExitStack) -> SyncOrchestrator:
@@ -85,6 +106,10 @@ def _build_orchestrator(stack: ExitStack) -> SyncOrchestrator:
             childcare_api_port=childcare_client,
             daycare_repository=daycare_repository,
             config=childcare_config,
+        ),
+        incremental_daycares_summary_use_case=IncrementalDaycaresSummaryUseCase(
+            daycare_repository=daycare_repository,
+            ai_summary_port=_build_ai_summary_port(http),
         ),
         sync_history_repository=SyncHistoryRepositoryImpl(conn),
         telegram_notifier=TelegramNotifier(http, TelegramConfig.from_env()),

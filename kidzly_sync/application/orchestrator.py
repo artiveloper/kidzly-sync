@@ -13,6 +13,9 @@ from datetime import timedelta
 from kidzly_sync.application.model import SyncResult
 from kidzly_sync.application.usecase.delta_sync import DeltaSyncUseCase
 from kidzly_sync.application.usecase.full_sync import FullSyncUseCase
+from kidzly_sync.application.usecase.incremental_daycares_summary import (
+    IncrementalDaycaresSummaryUseCase,
+)
 from kidzly_sync.application.usecase.playground_full_sync import PlaygroundFullSyncUseCase
 from kidzly_sync.application.usecase.sigungu_code_sync import SigunguCodeSyncUseCase
 from kidzly_sync.common.time import now_kst
@@ -34,6 +37,7 @@ class SyncOrchestrator:
         playground_full_sync_use_case: PlaygroundFullSyncUseCase,
         full_sync_use_case: FullSyncUseCase,
         delta_sync_use_case: DeltaSyncUseCase,
+        incremental_daycares_summary_use_case: IncrementalDaycaresSummaryUseCase,
         sync_history_repository: SyncHistoryRepository,
         telegram_notifier: TelegramNotifier,
     ) -> None:
@@ -41,6 +45,7 @@ class SyncOrchestrator:
         self._playground_full_sync_use_case = playground_full_sync_use_case
         self._full_sync_use_case = full_sync_use_case
         self._delta_sync_use_case = delta_sync_use_case
+        self._incremental_daycares_summary_use_case = incremental_daycares_summary_use_case
         self._sync_history_repository = sync_history_repository
         self._telegram_notifier = telegram_notifier
 
@@ -80,6 +85,26 @@ class SyncOrchestrator:
             skip_if_already_succeeded_today,
             target_year_month=yyyymm,
             success_body=_delta_success_body,
+            after_success=lambda history, result: self._run_incremental_ai_summary(yyyymm, history, result),
+        )
+
+    def _run_incremental_ai_summary(self, yyyymm: str, history: SyncHistory, result: SyncResult) -> None:
+        """신규 upsert 가 있을 때만 — 바뀐 게 없으면 요약할 대상도 없다."""
+        if result.upserted <= 0:
+            return
+
+        log.info("증분 AI 요약 생성 시작 (기준시각=%s)", history.started_at)
+        summary_result = self._incremental_daycares_summary_use_case.execute(history.started_at)
+        log.info(
+            "증분 AI 요약 생성 완료 — 성공=%d, 실패=%d",
+            summary_result.success_count,
+            summary_result.failed_count,
+        )
+        self._telegram_notifier.send_message(
+            f"🤖 <b>증분 AI 요약 생성 완료</b> ({yyyymm})\n"
+            f"- 대상: {summary_result.total_count}개\n"
+            f"- 성공: {summary_result.success_count}개\n"
+            f"- 실패: {summary_result.failed_count}개"
         )
 
     def _run(
@@ -90,6 +115,7 @@ class SyncOrchestrator:
         skip_if_already_succeeded_today: bool,
         target_year_month: str | None = None,
         success_body: Callable[[SyncResult, int, int], str] | None = None,
+        after_success: Callable[[SyncHistory, SyncResult], None] | None = None,
     ) -> bool:
         """이력 한 행의 생애를 관리한다 — RUNNING 으로 열고 COMPLETED/FAILED 로 닫는다."""
         suffix = f" ({target_year_month})" if target_year_month else ""
@@ -138,6 +164,10 @@ class SyncOrchestrator:
         )
         body = (success_body or _default_success_body)(sync_result, minutes, seconds)
         self._telegram_notifier.send_message(f"✅ <b>{label} 동기화 완료</b>{suffix}\n{body}")
+
+        if after_success is not None:
+            after_success(history, sync_result)
+
         return True
 
     def _exists_completed_today(self, sync_type: SyncType, target_year_month: str | None) -> bool:

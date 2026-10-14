@@ -7,11 +7,13 @@
 from __future__ import annotations
 
 import dataclasses
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 
 from kidzly_sync.application.model import DaycareData
+from kidzly_sync.common.time import now_kst
 from kidzly_sync.infrastructure.persistence.daycare_repository import (
     GUARDED_COLUMNS,
     DaycareRepositoryImpl,
@@ -217,3 +219,58 @@ def test_refreshes_synced_at_when_closing(conn, repository):
     repository.mark_as_closed("11110000001", "20260315")
 
     assert column_of(conn, "11110000001", "synced_at") != before
+
+
+# ── AI 요약 대상 조회 / 저장 ──────────────────────────────────────────────────
+
+
+def test_finds_normal_status_daycares_synced_after_the_checkpoint(conn, repository):
+    checkpoint = now_kst()
+    repository.upsert_all([sample("A")])  # checkpoint 이후 upsert → synced_at > checkpoint
+
+    found = repository.find_all_by_status_and_synced_at_after("정상", checkpoint)
+
+    assert [d.daycare_code for d in found] == ["A"]
+
+
+def test_excludes_daycares_synced_before_the_checkpoint(conn, repository):
+    repository.upsert_all([sample("A")])
+    checkpoint = now_kst() + timedelta(seconds=1)
+
+    found = repository.find_all_by_status_and_synced_at_after("정상", checkpoint)
+
+    assert found == []
+
+
+def test_excludes_daycares_with_a_different_status(conn, repository):
+    checkpoint = now_kst()
+    repository.upsert_all([sample("A", status="폐지")])
+
+    found = repository.find_all_by_status_and_synced_at_after("정상", checkpoint)
+
+    assert found == []
+
+
+def test_reconstructs_every_field_of_the_found_daycare(conn, repository):
+    checkpoint = now_kst()
+    repository.upsert_all([sample()])
+
+    found = repository.find_all_by_status_and_synced_at_after("정상", checkpoint)
+
+    assert len(found) == 1
+    assert found[0].name == "청운어린이집"
+    assert found[0].capacity == 99
+    assert found[0].nursery_room_size == Decimal("250.75")
+
+
+def test_saves_the_ai_analysis_as_jsonb(conn, repository):
+    repository.upsert_all([sample()])
+
+    repository.save_ai_analysis("11110000001", '{"summary": "요약"}')
+
+    assert column_of(conn, "11110000001", "ai_analysis") == {"summary": "요약"}
+
+
+def test_save_ai_analysis_is_a_no_op_for_an_unknown_daycare_code(conn, repository):
+    # 존재하지 않는 코드라도 예외 없이 조용히 지나가야 한다 (행 수를 보고하지 않는 메서드다)
+    repository.save_ai_analysis("없는코드", '{"summary": "요약"}')

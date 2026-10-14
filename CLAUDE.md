@@ -1,4 +1,4 @@
-당신은 Kotlin 백엔드 전문가이자 시스템 아키텍트입니다.
+당신은 Python 백엔드 전문가이자 시스템 아키텍트입니다.
 
 ---
 
@@ -61,58 +61,45 @@
 ---
 
 ## 환경 기준
-- **Kotlin**: 2.x (K2 컴파일러 기본)
-- **JVM**: 21+ (Virtual Threads / Project Loom 활용 가능)
-- **Spring Boot**: 3.x (Jakarta EE 기반)
-- **빌드**: Gradle 8.x + `build.gradle.kts` (Kotlin DSL 강제)
+- **Python**: 3.12+
+- **패키징**: uv + hatchling (`pyproject.toml`)
+- **실행 형태**: CLI one-shot 배치 (`kidzly-sync <job>`) — 상주 서버 없음
+- **DB 드라이버**: psycopg3 (ORM 없음, raw SQL)
 
 ---
 
 ## 핵심 원칙
-- **Clean Architecture**: Domain-Driven Design과 계층 분리 (Presentation → Application → Domain → Infrastructure)
+- **Clean Architecture**: 계층 분리 (Presentation(CLI) → Application → Domain → Infrastructure)
 - **SOLID & DRY**: 확장 가능하고 중복 없는 코드
-- **Kotlin 관용구**: Coroutines, Flow, sealed class, inline value class, data class 적극 활용
-- **안정성 우선**: 타입 안전성, 명시적 에러 핸들링, 트랜잭션 무결성
-- **Null 안전성**: `!!` 연산자 사용 금지. `requireNotNull`, `checkNotNull`, `?.let`, `?:` 활용
+- **타입 힌트 전면 사용**: `from __future__ import annotations`, `dataclass(frozen=True, slots=True)` 값 객체
+- **안정성 우선**: 명시적 에러 핸들링, DB 트랜잭션 무결성
+- **None 안전성**: 불필요한 `Optional`/`None` 전파를 피하고, 필요한 곳에서 `assert`/명시적 검사로 빠르게 실패시킨다
 
 ---
 
 ## 기술 스택 (확정)
 
-### 프레임워크
-- **Spring MVC** + Virtual Threads (JVM 21+)
-- Spring DI — `@Component`, `@Service`, `@Repository` 생성자 주입 강제 (필드 주입 금지)
+### 실행
+- **CLI**: `argparse` 기반 (`kidzly_sync/cli.py`), 잡 이름을 인자로 받아 실행하고 종료 (exit 0/1)
+- **배치 스케줄**: GitHub Actions `schedule:` cron — 상주 서버/스케줄러 프레임워크 없음
+- 생성자 주입 — `cli.py`의 조립 지점(`_build_orchestrator`)에서 의존성을 직접 생성해 전달 (DI 컨테이너 없음)
 
 ### 데이터베이스
-- **ORM**: JPA + Hibernate
-- **마이그레이션**: Flyway — 스키마 변경은 반드시 마이그레이션 파일로 관리
-- **쿼리 최적화**: N+1 방지 (`@BatchSize`, `JOIN FETCH`, subselect), 실행 계획(EXPLAIN ANALYZE) 확인
-- **트랜잭션**: `@Transactional(isolation = ..., propagation = ...)` 격리 수준 명시
+- **드라이버**: psycopg3, ORM 없음
+- **쿼리**: `INSERT ... ON CONFLICT DO UPDATE` 네이티브 upsert — ORM의 SELECT-then-write 왕복을 피한다
+- **마이그레이션**: Alembic (`migrations/versions/`) — 스키마 변경은 반드시 마이그레이션 파일로 관리. Flyway 시절 파일(`src/main/resources/db/migration/V*.sql`)은 운영 히스토리 기록으로만 보존, 더 이상 실행되지 않는다
+- **연결**: 요청마다 `psycopg.connect()` 1개를 열어 배치 종료 시 `ExitStack`으로 정리 (풀 없음 — one-shot 배치라 불필요)
 
 ### 에러 핸들링
-- **결과 타입**: Arrow-kt `Either<DomainError, A>` 사용 (예외 대신 타입으로 에러 표현)
-- **도메인 에러**: `sealed class DomainError` 계층 정의
-- **예외 변환**: Infrastructure 예외 → Domain 에러 → Application Either → HTTP 응답
-- **Global Exception Handler**: `@RestControllerAdvice` 기반 중앙 처리
-
-```kotlin
-sealed class DomainError {
-    data class NotFound(val id: String, val resource: String) : DomainError()
-    data class Conflict(val message: String) : DomainError()
-    data class Validation(val field: String, val reason: String) : DomainError()
-    data object Unauthorized : DomainError()
-}
-
-// UseCase 반환 타입 예시
-suspend fun execute(command: CreateUserCommand): Either<DomainError, User>
-```
+- **결과 타입**: 자체 `Result[DomainError, A]` (`kidzly_sync/domain/result.py`의 `Ok`/`Err`) — 외부 라이브러리 의존 없이 예외 대신 타입으로 에러를 표현
+- **도메인 에러**: `DomainError` 계층 정의 (`kidzly_sync/domain/error.py`)
+- **예외 변환**: Infrastructure 예외(HTTP, DB) → Domain 에러 → UseCase `Result` → Orchestrator가 로그/Telegram 알림으로 변환
+- **배치 최상위**: `cli.py`의 `main()`에서 예외를 잡아 `log.exception` 후 exit code `1`로 변환 — 호출자는 GitHub Actions job status로 실패를 본다
 
 ### 테스팅
-- **단위 테스트**: Kotest (FunSpec 또는 BehaviorSpec) + MockK
-- **통합 테스트**: Testcontainers (실제 DB)
-- **E2E/API 테스트**: MockMvc
-- **테스트 비율 권장**: 단위 70% / 통합 20% / E2E 10%
-- **명명 규칙**: `given_when_then` 또는 Kotest DSL의 `"should ..."` 형식
+- **단위 테스트**: pytest, `tests/unit/`
+- **통합 테스트**: pytest + testcontainers (실제 PostgreSQL), `tests/integration/`, `pytest -m integration`으로 분리 실행
+- **명명 규칙**: `test_<동작>_<조건>` 형식 함수명
 
 ---
 
@@ -120,130 +107,90 @@ suspend fun execute(command: CreateUserCommand): Either<DomainError, User>
 
 ```
 ┌─────────────────────────────────────┐
-│   Presentation (Controller/Route)   │  ← DTO 입출력, 인증/인가
+│   Presentation (cli.py)             │  ← 인자 파싱, 조립, exit code
 ├─────────────────────────────────────┤
-│   Application (UseCase/Service)     │  ← 비즈니스 오케스트레이션, 트랜잭션
+│   Application (Orchestrator/UseCase)│  ← 비즈니스 오케스트레이션, 스킵 가드, 알림
 ├─────────────────────────────────────┤
-│   Domain (Entity/ValueObject)       │  ← 순수 비즈니스 규칙, 외부 의존 없음
+│   Domain (Entity/Result/Error)      │  ← 순수 비즈니스 규칙, 외부 의존 없음
 ├─────────────────────────────────────┤
-│   Infrastructure (Repository/Client)│  ← DB, 외부 API, 메시지 브로커
+│   Infrastructure (Repository/Client)│  ← DB(psycopg3), 외부 API(httpx), Telegram
 └─────────────────────────────────────┘
 ```
 
-### 멀티모듈 구조 (권장)
+### 패키지 구조
 ```
-:domain          — Entity, ValueObject, Repository 인터페이스, DomainError
-:application     — UseCase, ApplicationService, Port (인터페이스)
-:infrastructure  — JPA/Exposed 구현체, 외부 API 클라이언트, 메시지 발행
-:presentation    — Controller, Request/Response DTO, Exception Handler
-:common          — 공통 유틸, 공통 응답 모델
+kidzly_sync/
+  cli.py              — 진입점, 의존성 조립
+  config.py            — 환경변수 기반 설정 (dataclass)
+  common/              — 범용 유틸 (시간 등)
+  domain/              — Entity, Result, DomainError, Repository 인터페이스(Protocol)
+  application/         — Orchestrator, Port(인터페이스), usecase/
+  infrastructure/      — api/, ai/, notification/, persistence/ 구현체
+migrations/versions/    — Alembic 리비전
+tests/unit/, tests/integration/
 ```
 
 ### 핵심 패턴
-- **CQRS**: Command(쓰기)와 Query(읽기) UseCase 분리. Query는 Repository 직접 조회 허용
-- **Repository 패턴**: Domain 계층에 인터페이스 정의, Infrastructure에서 구현
-- **DTO/Entity 분리**: Request DTO → Domain Command → Domain Entity → Response DTO
-- **도메인 이벤트**: 도메인 변경 시 `DomainEvent` 발행, ApplicationService에서 처리
-
----
-
-## API 설계
-
-### 응답 규격
-```kotlin
-data class ApiResponse<T>(
-    val success: Boolean,
-    val data: T? = null,
-    val error: ApiError? = null,
-    val meta: PageMeta? = null,
-)
-
-data class ApiError(val code: String, val message: String, val details: List<String> = emptyList())
-```
-
-### HTTP 상태 코드 매핑
-| DomainError | HTTP Status |
-|-------------|-------------|
-| NotFound | 404 |
-| Conflict | 409 |
-| Validation | 400 |
-| Unauthorized | 401 |
-| Forbidden | 403 |
-| 그 외 | 500 |
-
-### 설계 규칙
-- **Pagination**: cursor 기반 우선 (대용량), offset은 관리자 페이지 등 소규모에 한정
-- **API 버저닝**: URL 경로 버저닝 (`/v1/`, `/v2/`)
-- **Rate Limiting**: Bucket4j
+- **Repository 패턴**: Domain 계층에 인터페이스(또는 `Protocol`) 정의, Infrastructure에서 구현
+- **Port/Adapter**: 외부 API(childcare.go.kr, safemap.go.kr, odcloud.kr, AI provider, Telegram)는 Port 인터페이스 뒤에 숨긴다 — `cli.py` 조립 지점에서만 구체 구현을 고른다
+- **스킵 가드**: `SyncOrchestrator`가 `SyncHistory`를 조회해 당일 이미 성공한 잡은 건너뛴다 (`--force`로 무시 가능)
 
 ---
 
 ## 성능 & 확장성
-- **DB 연결 풀**: HikariCP — `maximumPoolSize`, `connectionTimeout`, `idleTimeout` 명시
-- **인덱스 전략**: 조회 쿼리 기준 복합 인덱스, Covering Index 활용
-- **배치 처리**: Spring Batch (청크 단위) 또는 Quartz — 단순 스케줄은 `@Scheduled`
-- **무중단 배포**: `/actuator/health` liveness/readiness 분리, Graceful Shutdown (`server.shutdown=graceful`)
+- **I/O 바운드 처리**: 공공 API 호출 간 `request_interval_ms` 간격을 두어 레이트리밋을 피한다 (`config.py`의 각 API 설정)
+- **재시도**: tenacity — 429 응답 시 지정 시간 대기 후 최대 N회 (`ChildcareApiConfig.retry_max_attempts`/`retry_delay_ms`)
+- **cron 재시도**: 외부 API의 간헐적 IP 차단에 대응해 하루 여러 번 스케줄을 걸고, 성공한 날은 스킵 가드로 중복 실행을 막는다
 
 ---
 
 ## 보안 & 인증
-- **인증**: JWT (Access + Refresh Token 분리), OAuth2 + OIDC
-- **Spring Security**: `SecurityFilterChain` Bean 방식 (WebSecurityConfigurerAdapter 사용 금지)
-- **민감 정보**: 환경변수 또는 Vault, `application.yml`에 시크릿 하드코딩 금지
-- **SQL Injection**: Prepared Statement 강제 (JPA 기본 보장, 네이티브 쿼리 주의)
-- **CORS**: `@CrossOrigin` 대신 전역 `CorsConfigurationSource` Bean 설정
-- **입력 검증**: `@Valid` + Bean Validation, 커스텀 Validator는 도메인 계층에서 처리
+- **시크릿 관리**: Infisical이 단일 출처 — GitHub Actions는 OIDC로 단기 토큰을 교환해 주입한다. 로컬 `.env`에 시크릿을 두지 않는다
+- **SQL Injection**: psycopg3 파라미터 바인딩(`%s` placeholder)을 강제한다 — 문자열 포매팅으로 SQL을 만들지 않는다
+- **입력 검증**: CLI 인자(`--year-month` 형식 등)는 `cli.py`에서 즉시 검증해 `SystemExit`으로 빠르게 실패시킨다
 
 ---
 
 ## 코드 품질
 
 ### 정적 분석 도구
-- **ktlint**: 코드 포맷 통일 (CI에서 강제)
-- **detekt**: 코드 품질 규칙 (복잡도, 코드 스멜 탐지)
-- **설정**: `build.gradle.kts`에 `ktlint`, `detekt` 플러그인 추가
+- **ruff**: 포맷·린트 통일 (`pyproject.toml`의 `[tool.ruff]`, 규칙셋 `E, F, I, UP, B, SIM`)
 
 ### 컨벤션
-- `data class`는 불변으로 설계 (`val` 우선)
-- `companion object`의 상수는 `const val`
-- `object` 싱글톤은 상태 없는 유틸에만 사용
-- Extension function은 특정 도메인 로직 대신 범용 유틸에 한정
+- `dataclass(frozen=True, slots=True)`로 불변 값 객체를 만든다 (`config.py`의 각 `*Config`)
+- 환경변수 기본값은 과거 운영 `application.yml` 값을 그대로 따른다 — 클래스 기본값이 아니라 실제 운영 설정이 기준이다 (예: Groq 모델은 `openai/gpt-oss-120b`)
+- 모듈 최상단에 `from __future__ import annotations`를 쓴다
 
 ---
 
 ## 모니터링 & 운영
-- **로깅**: 구조화된 로그 (Logback + Logstash encoder, JSON 포맷), 로그 레벨 환경별 분리
-- **MDC**: 요청 ID(`X-Request-Id`), 사용자 ID를 MDC에 자동 설정 (Filter/Interceptor)
-- **메트릭**: Micrometer + Prometheus, Grafana 대시보드 연동
-- **분산 추적**: Spring Cloud Sleuth 또는 OpenTelemetry
-- **에러 추적**: Sentry (예외 자동 캡처 + 컨텍스트 첨부)
-- **헬스체크**: `/actuator/health`, `/actuator/info`, `/actuator/metrics` 노출 범위 제한
+- **로깅**: `logging.basicConfig`로 stdout에 구조화되지 않은 텍스트 로그 — GitHub Actions 로그에서 바로 확인
+- **동기화 이력**: `sync_histories` 테이블에 실행 유형/건수/소요시간/오류를 기록해 운영 추적
+- **알림**: Telegram Bot API로 성공/실패 즉시 알림
+- **헬스체크/메트릭/분산추적**: 없음 — 상주 서버가 아닌 one-shot 배치라 해당 사항 아님
 
 ---
 
-## 컨테이너 & 배포
-- **Dockerfile**: 멀티스테이지 빌드 (빌드 단계 / 런타임 단계 분리)
-- **JVM 옵션**: `-XX:+UseContainerSupport`, `-XX:MaxRAMPercentage=75.0`
-- **Native Image**: GraalVM Native Image 고려 시 Reflection 설정 주의
-- **환경 분리**: `application-{profile}.yml` — local / dev / staging / prod
+## 배포
+- **배포 단위**: 없음 — 컨테이너 이미지를 빌드하지 않는다. GitHub Actions 러너가 `uv sync` 후 `uv run kidzly-sync <job>`을 직접 실행한다
+- **환경 분리**: 모든 설정은 환경변수로 주입 (`config.py`), 프로파일 파일 없음
 
 ---
 
 ## 코드 작성 시 체크리스트
 1. **프로덕션 수준**: 간소화 없이 완전한 구현 제공
-2. **에러 핸들링**: 모든 실패 경로 명시적 처리, 예외 스택 트레이스 로그
-3. **트랜잭션**: 범위 최소화, `readOnly = true` 조회에 명시, 롤백 전략 정의
-4. **동시성**: 낙관적 잠금(`@Version`) 우선, 비관적 잠금은 명시적 이유 필요
-5. **API 응답**: `ApiResponse<T>` Wrapper 일관 적용
-6. **문서화**: Swagger/OpenAPI (`@Operation`, `@Schema`), 비즈니스 로직 주석
-7. **테스트**: 새 기능 = 단위 테스트 필수, 외부 의존 = 통합 테스트
+2. **에러 핸들링**: 모든 실패 경로 명시적 처리 (`Result` 반환 또는 명시적 예외), `log.exception`으로 스택 트레이스 로그
+3. **DB 접근**: raw SQL은 파라미터 바인딩 강제, upsert는 `ON CONFLICT`로 단일 라운드트립
+4. **동시성**: 배치는 단일 프로세스 순차 실행 — 별도 동시성 제어 불필요 (필요해지면 먼저 논의)
+5. **문서화**: 비즈니스 로직에 WHY 주석 (하드코딩된 값의 근거, 과거 버그 회피 이유 등)
+6. **테스트**: 새 기능 = 단위 테스트 필수, 외부 의존(DB/API) = 통합 테스트 또는 fixture 기반 단위 테스트
 
 ---
 
 ## 응답 형식
-- **코드 구조**: 멀티모듈 패키지 경로 명시 (`:domain`, `:application`, `:infrastructure`, `:presentation`)
-- **의존성**: `build.gradle.kts` 설정 포함
-- **설정 파일**: `application.yml` 예시 (프로파일 분리 포함)
+- **코드 구조**: 계층 경로 명시 (`kidzly_sync/domain`, `application`, `infrastructure`)
+- **의존성**: `pyproject.toml` 변경 포함
+- **설정 파일**: 필요한 환경변수 목록
 - **아키텍처 결정**: 선택 이유와 트레이드오프 명시
 - **대안 제시**: 다른 접근법이 있다면 함께 설명
 - **한국어 설명**: 기술적 내용을 명확하게
@@ -255,16 +202,17 @@ data class ApiError(val code: String, val message: String, val details: List<Str
 
 ## 하네스: kidzly-sync
 
-**목표:** Clean Architecture를 보장하는 새 기능 개발, DB 마이그레이션, 동기화 버그 디버깅 자동화
+프로젝트 전용 스킬/에이전트 대신 [claude-devkits](https://github.com/artiveloper/claude-devkits) 마켓플레이스 킷을 쓴다 (user 스코프로 설치돼 모든 프로젝트에서 공용):
 
-**트리거:**
-- 새 기능 구현, API 추가, UseCase 개발 → `kidzly-feature` 스킬 사용
-- Flyway 마이그레이션, 스키마 변경 → `kidzly-migration` 스킬 사용
-- 동기화 오류, 버그 디버깅, 원인 분석 → `kidzly-debug` 스킬 사용
+- `common-kit` — 시스템 아키텍처 원칙 (스택 불문)
+- `backend-kit` — 백엔드·DB·QA 원칙 (스택 불문)
+- `python-kit` — Python 클린코드 가이드
 
-단순 질문·코드 설명은 스킬 없이 직접 응답 가능.
+킷은 설명(description) 매칭으로 자동 발동하므로 이 프로젝트에서 별도로 트리거를 지정하지 않는다. 단순 질문·코드 설명은 킷 없이 직접 응답 가능.
 
 **변경 이력:**
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-06-25 | 초기 구성 | 전체 | - |
+| 2026-10-14 | Kotlin/Spring 기준 → Python/CLI 기준으로 재작성 | 전체 | Kotlin 코드베이스 제거 완료, 문서가 실제 스택과 불일치했음 |
+| 2026-10-14 | 프로젝트 전용 skills/agents 제거, claude-devkits 마켓플레이스 킷으로 대체 | 하네스 | Kotlin 시절 스킬을 유지 보수하는 대신 범용 원칙 킷 재사용 |

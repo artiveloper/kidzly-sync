@@ -17,5 +17,15 @@
       "Bash(./gradlew flywayInfo)",
       "Bash(lsof -i :8080)"
     ]
+  },
+  "extraKnownMarketplaces": {
+    "claude-devkits": {
+      "source": { "source": "github", "repo": "artiveloper/claude-devkits" }
+    }
+  },
+  "enabledPlugins": {
+    "common-kit@claude-devkits": true,
+    "backend-kit@claude-devkits": true,
+    "python-kit@claude-devkits": true
   }
 }

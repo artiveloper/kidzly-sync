@@ -1,15 +1,7 @@
 name: Sigungu Code Sync (Weekly)
 
 on:
-  schedule:
-    # 매주 목요일 01:30~17:30 KST, 2시간 간격 9회 재시도
-    # (주기는 여전히 주 1회, 그날 안에서만 재시도. 이미 성공한 날은 앱이 스킵함)
-    # 분을 :30으로 두어 :00에 도는 delta·full 슬롯과 겹치지 않고,
-    # 짝수시 :30만 사용해 홀수시 :30을 쓰는 playground와도 겹치지 않는다.
-    # 목요일 01:30~07:30 KST = 수요일 16,18,20,22시 UTC
-    - cron: '30 16,18,20,22 * * 3'
-    # 목요일 09:30~17:30 KST = 목요일 0,2,4,6,8시 UTC
-    - cron: '30 0,2,4,6,8 * * 4'
+  # 스케줄 제거됨 — 파이썬판(sync-sigungu-code-python.yml)으로 이전했다. 롤백용으로 workflow_dispatch만 남긴다.
   workflow_dispatch:
 
 jobs:

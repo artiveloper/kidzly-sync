@@ -1,19 +1,23 @@
-name: Sigungu Code Sync (Python, 검증용)
+name: Sigungu Code Sync (Weekly)
 
-# 스케줄 없음 — 코틀린 잡(sync-sigungu-code.yml)이 아직 운영을 맡고 있다.
-# 이 워크플로는 손으로 돌려 두 구현의 결과가 같은지 비교하기 위한 것이다.
-# 비교가 끝나면 이 파일이 코틀린 워크플로를 대체한다.
+# 매주 목요일 01:30~17:30 KST, 2시간 간격 9회 재시도 (주기는 여전히 주 1회, 그날 안에서만 재시도)
+# 분을 :30으로 두어 :00에 도는 delta·full 슬롯과 겹치지 않고,
+# 짝수시 :30만 사용해 홀수시 :30을 쓰는 playground와도 겹치지 않는다.
+# 목요일 01:30~07:30 KST = 수요일 16,18,20,22시 UTC / 목요일 09:30~17:30 KST = 목요일 0,2,4,6,8시 UTC
 #
 # 시크릿은 전부 Infisical이 단일 출처다. 인증은 OIDC라 Infisical 자격증명을 어디에도
 # 저장하지 않는다 — GitHub이 잡 시작 시 발급한 단기 토큰으로 교환한다. 그래서
 # `permissions: id-token: write`가 없으면 토큰 자체가 발급되지 않아 먼저 실패한다.
 on:
+  schedule:
+    - cron: '30 16,18,20,22 * * 3'
+    - cron: '30 0,2,4,6,8 * * 4'
   workflow_dispatch:
     inputs:
       force:
-        description: '오늘 이미 성공했어도 건너뛰지 않고 실행한다 (두 구현 비교용)'
+        description: '오늘 이미 성공했어도 건너뛰지 않고 실행한다'
         required: false
-        default: true
+        default: false
         type: boolean
 
 env:

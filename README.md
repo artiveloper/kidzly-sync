@@ -101,7 +101,7 @@ kidzly-sync <job> [--force] [--year-month YYYY-MM]
 | kidzly-sync | `daycares`, `sigungus`, `sync_histories`, `playgrounds`, `sigungu_codes` |
 | kidzly.kr | `content_stats`, `daycares` 조회 인덱스, `daycare_type_names`·`daycare_service_types` 뷰 |
 
-마이그레이션 도구는 **Alembic**이다 (`migrations/versions/`). 과거 Flyway 시절 마이그레이션(`src/main/resources/db/migration/V1~V20__*.sql`)은 더 이상 실행되지 않지만 운영 히스토리 기록으로 보존한다. 베이스라인 리비전 `0001`이 당시 운영 `schema.sql`(pg_dump)을 통째로 실행해 그 이력을 한 번에 편입했다.
+마이그레이션 도구는 **Alembic**이다 (`migrations/versions/`). 과거 Flyway 시절 마이그레이션(`docs/legacy/migration/V1~V20__*.sql`)은 더 이상 실행되지 않지만 운영 히스토리 기록으로 보존한다. 베이스라인 리비전 `0001`이 당시 운영 `schema.sql`(pg_dump)을 통째로 실행해 그 이력을 한 번에 편입했다.
 
 ### 변경 절차
 
@@ -114,7 +114,7 @@ kidzly-sync <job> [--force] [--year-month YYYY-MM]
    docker rm -f kidzly-mig-test
    ```
 
-3. `schema.sql` 재생성 — 손으로 고치지 않는다. 위 컨테이너에서 뽑는다 (`pg_dump --schema-only --no-owner --no-privileges`).
+3. `db/schema.sql` 재생성 — 손으로 고치지 않는다. 위 컨테이너에서 뽑는다 (`pg_dump --schema-only --no-owner --no-privileges`).
 4. 커밋 → **운영 반영**. `db-migrate.yml` 워크플로를 `workflow_dispatch`로 수동 실행한다 (`alembic upgrade head`, `cancel-in-progress: false`).
 5. 웹이 읽는 컬럼이 바뀌었으면 kidzly.kr의 `packages/supabase/src/types.ts`를 갱신한다. **마이그레이션이 운영에 적용된 뒤에 웹을 배포한다** — 두 저장소라 배포 순서는 자동으로 보장되지 않는다.
 

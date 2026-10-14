@@ -29,7 +29,7 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-SCHEMA_SQL = Path(__file__).resolve().parents[2] / "schema.sql"
+SCHEMA_SQL = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
 
 
 def upgrade() -> None:

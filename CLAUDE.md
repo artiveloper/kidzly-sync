@@ -87,7 +87,7 @@
 ### 데이터베이스
 - **드라이버**: psycopg3, ORM 없음
 - **쿼리**: `INSERT ... ON CONFLICT DO UPDATE` 네이티브 upsert — ORM의 SELECT-then-write 왕복을 피한다
-- **마이그레이션**: Alembic (`migrations/versions/`) — 스키마 변경은 반드시 마이그레이션 파일로 관리. Flyway 시절 파일(`src/main/resources/db/migration/V*.sql`)은 운영 히스토리 기록으로만 보존, 더 이상 실행되지 않는다
+- **마이그레이션**: Alembic (`migrations/versions/`) — 스키마 변경은 반드시 마이그레이션 파일로 관리. Flyway 시절 파일(`docs/legacy/migration/V*.sql`)은 운영 히스토리 기록으로만 보존, 더 이상 실행되지 않는다
 - **연결**: 요청마다 `psycopg.connect()` 1개를 열어 배치 종료 시 `ExitStack`으로 정리 (풀 없음 — one-shot 배치라 불필요)
 
 ### 에러 핸들링
@@ -202,7 +202,7 @@ tests/unit/, tests/integration/
 
 ## 하네스: kidzly-sync
 
-프로젝트 전용 스킬/에이전트 대신 [claude-devkits](https://github.com/artiveloper/claude-devkits) 마켓플레이스 킷을 쓴다 (user 스코프로 설치돼 모든 프로젝트에서 공용):
+프로젝트 전용 스킬/에이전트 대신 [claude-devkits](https://github.com/artiveloper/claude-devkits) 마켓플레이스 킷을 쓴다 (`.claude/settings.json`에 project 스코프로 선언돼 이 저장소에 관여하는 모든 사람에게 적용):
 
 - `common-kit` — 시스템 아키텍처 원칙 (스택 불문)
 - `backend-kit` — 백엔드·DB·QA 원칙 (스택 불문)

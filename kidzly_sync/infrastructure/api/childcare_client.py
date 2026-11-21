@@ -16,7 +16,7 @@ from urllib.parse import quote
 from xml.etree import ElementTree
 
 import httpx
-from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_fixed
+from tenacity import RetryCallState, Retrying, retry_if_exception_type, stop_after_attempt
 
 from kidzly_sync.application.model import (
     ClosedDaycareInfo,
@@ -28,7 +28,7 @@ from kidzly_sync.config import ChildcareApiConfig
 from kidzly_sync.domain import error as domain_error
 from kidzly_sync.domain.error import DomainError
 from kidzly_sync.domain.result import Err, Ok, Result
-from kidzly_sync.infrastructure.api.errors import ApiError, RateLimitError, UnauthorizedError
+from kidzly_sync.infrastructure.api.errors import ApiError, RateLimitError, ServerError, UnauthorizedError
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +38,10 @@ SIGUNGU_PATH = "/mediate/rest/cpmsapi020/cpmsapi020/request"
 DAYCARE_DETAIL_PATH = "/mediate/rest/cpmsapi030/cpmsapi030/request"
 NEW_DAYCARE_PATH = "/mediate/rest/cpmsapi018/cpmsapi018/request"
 CLOSED_DAYCARE_PATH = "/mediate/rest/cpmsapi019/cpmsapi019/request"
+
+# cpmsapi030 은 전체 동기화 한 번에 시군구 6곳꼴로 500 을 냈고(2026-11-22), 몇 초 뒤 같은 요청은
+# 모두 성공했다. 재시도 없이 건너뛰면 그 시군구 전체가 일주일 동안 갱신되지 않는다.
+SERVER_ERROR_RETRY_DELAY_MS = 3_000
 
 # ── cpmsapi030 필드 매핑 ──────────────────────────────────────────────────────
 # 왼쪽이 DaycareData 필드(=DB 컬럼), 오른쪽이 XML 엘리먼트 이름이다.
@@ -135,13 +139,26 @@ class ChildcareApiClient:
         config: ChildcareApiConfig,
         retry_max_attempts: int | None = None,
         retry_delay_ms: int | None = None,
+        server_error_retry_delay_ms: int = SERVER_ERROR_RETRY_DELAY_MS,
     ) -> None:
         self._http = http_client
         self._config = config
+        rate_limit_wait = (retry_delay_ms if retry_delay_ms is not None else config.retry_delay_ms) / 1000
+        server_error_wait = server_error_retry_delay_ms / 1000
+
+        def wait(state: RetryCallState) -> float:
+            # 429 는 일 요청 한도라 길게(기본 1분), 5xx 는 일시 장애라 짧게 쉰다
+            assert state.outcome is not None
+            return (
+                rate_limit_wait
+                if isinstance(state.outcome.exception(), RateLimitError)
+                else server_error_wait
+            )
+
         self._retrying = Retrying(
-            retry=retry_if_exception_type(RateLimitError),
+            retry=retry_if_exception_type((RateLimitError, ServerError)),
             stop=stop_after_attempt(retry_max_attempts or config.retry_max_attempts),
-            wait=wait_fixed((retry_delay_ms if retry_delay_ms is not None else config.retry_delay_ms) / 1000),
+            wait=wait,
             reraise=True,
         )
 
@@ -256,7 +273,7 @@ class ChildcareApiClient:
         if 400 <= status < 500:
             raise ApiError(status, f"클라이언트 오류 (path={path})")
         if status >= 500:
-            raise ApiError(status, f"서버 오류 (path={path})")
+            raise ServerError(status, f"서버 오류 (path={path})")
 
         log.debug("API 응답 상태: %d, Content-Type: %s", status, response.headers.get("content-type"))
 

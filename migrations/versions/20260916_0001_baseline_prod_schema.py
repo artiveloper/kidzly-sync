@@ -29,7 +29,9 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-SCHEMA_SQL = Path(__file__).resolve().parents[2] / "db" / "schema.sql"
+# 이 리비전 전용 스냅샷이다. 현재 스키마가 아니므로 갱신하지 않는다 — 갱신하면 이후 리비전이
+# 이미 있는 컬럼을 다시 추가하려다 빈 DB 에서 실패한다.
+SCHEMA_SQL = Path(__file__).resolve().parents[1] / "baseline" / "0001_schema.sql"
 
 
 def upgrade() -> None:

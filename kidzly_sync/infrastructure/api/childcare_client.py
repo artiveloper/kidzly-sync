@@ -80,6 +80,7 @@ _INT_FIELDS: dict[str, str] = {
     "class_count_age_4": "class_cnt_04",
     "class_count_age_5": "class_cnt_05",
     "class_count_infant_mixed": "class_cnt_m2",
+    "class_count_infant_child_mixed": "class_cnt_m3",  # 명세서 v1.7(2026-04-16) 추가
     "class_count_child_mixed": "class_cnt_m5",
     "class_count_special": "class_cnt_sp",
     "class_count_total": "class_cnt_tot",
@@ -90,6 +91,7 @@ _INT_FIELDS: dict[str, str] = {
     "child_count_age_4": "child_cnt_04",
     "child_count_age_5": "child_cnt_05",
     "child_count_infant_mixed": "child_cnt_m2",
+    "child_count_infant_child_mixed": "child_cnt_m3",  # 명세서 v1.7(2026-04-16) 추가
     "child_count_child_mixed": "child_cnt_m5",
     "child_count_special": "child_cnt_sp",
     "child_count_total": "child_cnt_tot",
@@ -263,10 +265,18 @@ class ChildcareApiClient:
             return Err(domain_error.ParseError(f"빈 응답 (path={path})"))
 
         try:
-            return Ok(ElementTree.fromstring(body))
+            root = ElementTree.fromstring(body)
         except ElementTree.ParseError as e:
             log.error("XML 파싱 오류: %s", e, exc_info=True)
             return Err(domain_error.ParseError(f"{e} (path={path})", e))
+
+        # 명세서는 태그를 전부 소문자로 적지만 실제 cpmsapi030 응답은 통계 필드
+        # (CLASS_CNT_*, CHILD_CNT_*, EM_CNT_*, EW_CNT_*)와 CRREPNAME 을 대문자로 보낸다
+        # (2026-11-21 확인). find 는 대소문자를 구분해 이 필드들이 전부 NULL 로 저장됐다.
+        # 매핑은 명세서(소문자) 기준으로 두고, 응답 쪽을 한 번 소문자로 맞춘다.
+        for element in root.iter():
+            element.tag = element.tag.lower()
+        return Ok(root)
 
 
 # ── cpmsapi030 → DaycareData ─────────────────────────────────────────────────

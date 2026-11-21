@@ -27,7 +27,7 @@ def build_client(
         return queue.pop(0) if queue else httpx.Response(200, text="<response/>")
 
     http = httpx.Client(transport=httpx.MockTransport(handler))
-    return ChildcareApiClient(http, config(), retry_delay_ms=0), seen
+    return ChildcareApiClient(http, config(), retry_delay_ms=0, server_error_retry_delay_ms=0), seen
 
 
 def xml(body: str) -> httpx.Response:
@@ -311,7 +311,8 @@ def test_maps_http_401_to_unauthorized():
 
 @pytest.mark.parametrize("status", [400, 404, 500])
 def test_maps_http_error_statuses_to_api_call_error(status):
-    client, _ = build_client(responses=[httpx.Response(status)])
+    # 5xx 는 재시도하므로 마지막 시도까지 같은 상태를 돌려준다
+    client, _ = build_client(responses=[httpx.Response(status) for _ in range(3)])
 
     result = client.fetch_sigungu_list("서울특별시")
 
@@ -326,6 +327,48 @@ def test_retries_http_429_and_then_reports_rate_limit_exceeded():
 
     assert result == Err(domain_error.RateLimitExceeded())
     assert len(seen) == 3
+
+
+def test_retries_a_transient_http_500_and_succeeds():
+    # 2026-11-22 전체 동기화에서 시군구 6곳이 500 을 냈고 몇 초 뒤 재요청은 모두 성공했다
+    client, seen = build_client(responses=[httpx.Response(500), xml(response_of(DETAIL_ITEM))])
+
+    result = client.fetch_daycare_details("11110")
+
+    assert isinstance(result, Ok)
+    assert [d.daycare_code for d in result.value] == ["11110000001"]
+    assert len(seen) == 2
+
+
+def test_gives_up_on_http_5xx_after_the_configured_attempts():
+    client, seen = build_client(responses=[httpx.Response(503) for _ in range(3)])
+
+    result = client.fetch_daycare_details("11110")
+
+    assert isinstance(result.error, domain_error.ApiCallError)
+    assert result.error.status_code == 503
+    assert len(seen) == 3
+
+
+@pytest.mark.parametrize("status", [400, 401, 404])
+def test_does_not_retry_http_4xx(status):
+    # 클라이언트 오류는 다시 보내도 같다
+    client, seen = build_client(responses=[httpx.Response(status), xml(response_of())])
+
+    client.fetch_sigungu_list("서울특별시")
+
+    assert len(seen) == 1
+
+
+def test_waits_briefly_for_5xx_and_long_for_429():
+    sleeps: list[float] = []
+    queue = [httpx.Response(500), httpx.Response(429), xml(response_of())]
+    http = httpx.Client(transport=httpx.MockTransport(lambda request: queue.pop(0)))
+    client = ChildcareApiClient(http, config(), retry_delay_ms=60_000, server_error_retry_delay_ms=3_000)
+    client._retrying.sleep = sleeps.append
+
+    assert isinstance(client.fetch_sigungu_list("서울특별시"), Ok)
+    assert sleeps == [3.0, 60.0]
 
 
 # ── 요청 파라미터 ──────────────────────────────────────────────────────────────

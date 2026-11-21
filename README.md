@@ -103,6 +103,8 @@ kidzly-sync <job> [--force] [--year-month YYYY-MM]
 
 마이그레이션 도구는 **Alembic**이다 (`migrations/versions/`). 과거 Flyway 시절 마이그레이션(`docs/legacy/migration/V1~V20__*.sql`)은 더 이상 실행되지 않지만 운영 히스토리 기록으로 보존한다. 베이스라인 리비전 `0001`이 당시 운영 `schema.sql`(pg_dump)을 통째로 실행해 그 이력을 한 번에 편입했다.
 
+`migrations/baseline/0001_schema.sql`은 **리비전 `0001` 전용 스냅샷**(2026-09-16 운영 pg_dump)이며 현재 스키마가 아니다. 수정하거나 재생성하지 않는다 — 이후 리비전의 변경이 들어가면 빈 DB에서 그 리비전이 "이미 있는 컬럼"으로 실패한다. 현재 스키마가 필요하면 빈 DB에 `alembic upgrade head` 후 `pg_dump --schema-only`로 그때그때 뽑는다.
+
 ### 변경 절차
 
 1. `migrations/versions/`에 Alembic 리비전 생성 (`uv run --extra migrations alembic revision -m "설명"`), `upgrade()`에 `op.execute()`로 생 SQL을 넣는다.
@@ -114,9 +116,8 @@ kidzly-sync <job> [--force] [--year-month YYYY-MM]
    docker rm -f kidzly-mig-test
    ```
 
-3. `db/schema.sql` 재생성 — 손으로 고치지 않는다. 위 컨테이너에서 뽑는다 (`pg_dump --schema-only --no-owner --no-privileges`).
-4. 커밋 → **운영 반영**. `db-migrate.yml` 워크플로를 `workflow_dispatch`로 수동 실행한다 (`alembic upgrade head`, `cancel-in-progress: false`).
-5. 웹이 읽는 컬럼이 바뀌었으면 kidzly.kr의 `packages/supabase/src/types.ts`를 갱신한다. **마이그레이션이 운영에 적용된 뒤에 웹을 배포한다** — 두 저장소라 배포 순서는 자동으로 보장되지 않는다.
+3. 커밋 → **운영 반영**. `db-migrate.yml` 워크플로를 `workflow_dispatch`로 수동 실행한다 (`alembic upgrade head`, `cancel-in-progress: false`).
+4. 웹이 읽는 컬럼이 바뀌었으면 kidzly.kr의 `packages/supabase/src/types.ts`를 갱신한다. **마이그레이션이 운영에 적용된 뒤에 웹을 배포한다** — 두 저장소라 배포 순서는 자동으로 보장되지 않는다.
 
 ### 좌표 주의
 

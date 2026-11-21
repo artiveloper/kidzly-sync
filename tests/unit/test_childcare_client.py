@@ -64,6 +64,8 @@ def test_no_xml_tag_is_mapped_twice():
 
 # ── cpmsapi030 파싱 ───────────────────────────────────────────────────────────
 
+# 태그 대소문자는 실제 응답을 따른다 — 기본 필드는 소문자, 통계 필드와 CRREPNAME 은 대문자
+# (2026-11-21 cpmsapi030 실응답 확인)
 DETAIL_ITEM = """<item>
   <stcode>11110000001</stcode>
   <sidoname>서울특별시</sidoname>
@@ -86,26 +88,32 @@ DETAIL_ITEM = """<item>
   <cctvinstlcnt>12</cctvinstlcnt>
   <chcrtescnt>15</chcrtescnt>
   <crcargbname>없음</crcargbname>
-  <crrepname>홍길동</crrepname>
+  <CRREPNAME>홍길동</CRREPNAME>
   <crcnfmdt>20100301</crcnfmdt>
   <crpausebegindt></crpausebegindt>
   <crpauseenddt></crpauseenddt>
   <crabldt></crabldt>
   <datastdrdt>20260901</datastdrdt>
   <crspec>시간연장,장애아통합</crspec>
-  <class_cnt_00>1</class_cnt_00>
-  <class_cnt_01>2</class_cnt_01>
-  <class_cnt_tot>9</class_cnt_tot>
-  <child_cnt_00>3</child_cnt_00>
-  <child_cnt_tot>80</child_cnt_tot>
-  <em_cnt_0y>2.5</em_cnt_0y>
-  <em_cnt_6y>1.0</em_cnt_6y>
-  <em_cnt_a1>1</em_cnt_a1>
-  <em_cnt_a10>2</em_cnt_a10>
-  <em_cnt_tot>15</em_cnt_tot>
-  <ew_cnt_00>4</ew_cnt_00>
-  <ew_cnt_m6>1</ew_cnt_m6>
-  <ew_cnt_tot>20</ew_cnt_tot>
+  <CLASS_CNT_00>1</CLASS_CNT_00>
+  <CLASS_CNT_01>2</CLASS_CNT_01>
+  <CLASS_CNT_M2>0</CLASS_CNT_M2>
+  <CLASS_CNT_M3>1</CLASS_CNT_M3>
+  <CLASS_CNT_M5>2</CLASS_CNT_M5>
+  <CLASS_CNT_TOT>9</CLASS_CNT_TOT>
+  <CHILD_CNT_00>3</CHILD_CNT_00>
+  <CHILD_CNT_M2>0</CHILD_CNT_M2>
+  <CHILD_CNT_M3>7</CHILD_CNT_M3>
+  <CHILD_CNT_M5>11</CHILD_CNT_M5>
+  <CHILD_CNT_TOT>80</CHILD_CNT_TOT>
+  <EM_CNT_0Y>2.5</EM_CNT_0Y>
+  <EM_CNT_6Y>1.0</EM_CNT_6Y>
+  <EM_CNT_A1>1</EM_CNT_A1>
+  <EM_CNT_A10>2</EM_CNT_A10>
+  <EM_CNT_TOT>15</EM_CNT_TOT>
+  <EW_CNT_00>4</EW_CNT_00>
+  <EW_CNT_M6>1</EW_CNT_M6>
+  <EW_CNT_TOT>20</EW_CNT_TOT>
 </item>"""
 
 
@@ -135,6 +143,7 @@ def test_maps_text_fields():
     assert item.address == "서울특별시 종로구 청운동 1"
     assert item.latitude == "37.5869"
     assert item.services == "시간연장,장애아통합"
+    assert item.representative_name == "홍길동"
 
 
 def test_maps_numeric_fields_with_their_types():
@@ -148,6 +157,35 @@ def test_maps_numeric_fields_with_their_types():
     assert item.staff_director_count == 1
     assert item.waiting_child_age_over_6 == 1
     assert item.waiting_child_total == 20
+    assert item.class_count_age_0 == 1
+    assert item.class_count_total == 9
+    assert item.child_count_age_0 == 3
+    assert item.child_count_total == 80
+    assert item.staff_total == 15
+
+
+def test_maps_mixed_age_classes_without_confusing_m2_m3_m5():
+    # M3(영유아혼합, 만2~3세)는 명세서 v1.7 에서 M2·M5 사이에 끼어 들어왔다
+    item = fetch_details(response_of(DETAIL_ITEM))[0]
+
+    assert (
+        item.class_count_infant_mixed,
+        item.class_count_infant_child_mixed,
+        item.class_count_child_mixed,
+    ) == (0, 1, 2)
+    assert (
+        item.child_count_infant_mixed,
+        item.child_count_infant_child_mixed,
+        item.child_count_child_mixed,
+    ) == (0, 7, 11)
+
+
+def test_reads_tags_regardless_of_case():
+    # 명세서 예시는 소문자, 실제 응답은 일부 대문자 — 어느 쪽으로 와도 같은 값이어야 한다
+    lower = fetch_details(response_of(DETAIL_ITEM.lower()))[0]
+    upper = fetch_details(response_of(DETAIL_ITEM))[0]
+
+    assert lower == upper
 
 
 def test_distinguishes_an_absent_element_from_an_empty_one():

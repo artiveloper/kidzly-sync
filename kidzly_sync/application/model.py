@@ -173,6 +173,7 @@ class DaycareData:
     class_count_age_4: int | None
     class_count_age_5: int | None
     class_count_infant_mixed: int | None
+    class_count_infant_child_mixed: int | None
     class_count_child_mixed: int | None
     class_count_special: int | None
     class_count_total: int | None
@@ -184,6 +185,7 @@ class DaycareData:
     child_count_age_4: int | None
     child_count_age_5: int | None
     child_count_infant_mixed: int | None
+    child_count_infant_child_mixed: int | None
     child_count_child_mixed: int | None
     child_count_special: int | None
     child_count_total: int | None

@@ -37,3 +37,10 @@ class SigunguRepositoryImpl:
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.executemany(UPSERT_SQL, params)
             return cur.rowcount
+
+    def find_all_sido_names(self) -> list[str]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT sidoname FROM sigungus WHERE sidoname IS NOT NULL AND sidoname <> ''"
+            )
+            return [row[0] for row in cur.fetchall()]

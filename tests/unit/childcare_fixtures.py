@@ -75,11 +75,32 @@ class FakeChildcarePort:
 
 
 class RecordingDaycareRepository:
-    def __init__(self, upsert_returns: list[int] | None = None, closed_returns: list[int] | None = None):
+    def __init__(
+        self,
+        upsert_returns: list[int] | None = None,
+        closed_returns: list[int] | None = None,
+        sido_names: list[str] | None = None,
+        active_by_sido: dict[str, dict[str, str]] | None = None,
+    ):
+        """``active_by_sido`` 는 DB 에 있는 '정상' 어린이집 — {시도명: {코드: 코드}} 형태로 둔다."""
         self.batches: list[list[DaycareData]] = []
         self.closed_calls: list[tuple[str, str | None]] = []
+        self.excluded_codes: set[str] | None = None
         self._upsert_returns = list(upsert_returns) if upsert_returns is not None else None
         self._closed_returns = list(closed_returns) if closed_returns is not None else None
+        self._sido_names = sido_names or []
+        self._active_by_sido = active_by_sido or {}
+
+    def find_all_sido_names(self) -> list[str]:
+        return list(self._sido_names)
+
+    def count_active_by_sido_excluding(self, daycare_codes: set[str]) -> dict[str, int]:
+        self.excluded_codes = set(daycare_codes)
+        counts = {
+            sido: sum(1 for c in codes if c not in daycare_codes)
+            for sido, codes in self._active_by_sido.items()
+        }
+        return {sido: n for sido, n in counts.items() if n}
 
     def upsert_all(self, daycares: list[DaycareData]) -> int:
         self.batches.append(daycares)
@@ -95,8 +116,12 @@ class RecordingDaycareRepository:
 
 
 class RecordingSigunguRepository:
-    def __init__(self) -> None:
+    def __init__(self, sido_names: list[str] | None = None) -> None:
         self.batches: list[list[SigunguInfo]] = []
+        self._sido_names = sido_names or []
+
+    def find_all_sido_names(self) -> list[str]:
+        return list(self._sido_names)
 
     def upsert_all(self, sigungus: list[SigunguInfo]) -> int:
         self.batches.append(sigungus)

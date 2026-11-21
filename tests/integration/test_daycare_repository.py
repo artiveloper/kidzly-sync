@@ -290,3 +290,41 @@ def test_saves_the_ai_analysis_as_jsonb(conn, repository):
 def test_save_ai_analysis_is_a_no_op_for_an_unknown_daycare_code(conn, repository):
     # 존재하지 않는 코드라도 예외 없이 조용히 지나가야 한다 (행 수를 보고하지 않는 메서드다)
     repository.save_ai_analysis("없는코드", '{"summary": "요약"}')
+
+
+# ── 전체 동기화 보조 조회 ──────────────────────────────────────────────────────
+
+
+def test_finds_distinct_non_blank_sido_names(conn, repository):
+    repository.upsert_all(
+        [
+            sample("A", sido_name="서울특별시"),
+            sample("B", sido_name="서울특별시"),
+            sample("C", sido_name="전남광주통합특별시"),
+            sample("D", sido_name=""),
+            sample("E", sido_name=None),
+        ]
+    )
+
+    assert sorted(repository.find_all_sido_names()) == ["서울특별시", "전남광주통합특별시"]
+
+
+def test_counts_only_active_daycares_missing_from_the_given_codes(conn, repository):
+    repository.upsert_all(
+        [
+            sample("A", sido_name="서울특별시"),
+            sample("B", sido_name="서울특별시"),
+            sample("G", sido_name="광주광역시"),
+            sample("X", sido_name="광주광역시", status="폐지"),  # 폐지는 세지 않는다
+        ]
+    )
+
+    assert repository.count_active_by_sido_excluding({"A"}) == {"서울특별시": 1, "광주광역시": 1}
+    assert repository.count_active_by_sido_excluding({"A", "B", "G"}) == {}
+
+
+def test_counts_every_active_daycare_when_nothing_was_received(conn, repository):
+    # 빈 집합도 ANY() 로 안전하게 바인딩된다
+    repository.upsert_all([sample("A", sido_name="서울특별시")])
+
+    assert repository.count_active_by_sido_excluding(set()) == {"서울특별시": 1}

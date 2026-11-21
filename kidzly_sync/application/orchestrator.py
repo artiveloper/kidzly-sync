@@ -74,6 +74,7 @@ class SyncOrchestrator:
             "전체",
             self._full_sync_use_case.execute,
             skip_if_already_succeeded_today,
+            success_body=_full_success_body,
         )
 
     def delta_sync(self, yyyymm: str, skip_if_already_succeeded_today: bool = False) -> bool:
@@ -185,6 +186,25 @@ def _minutes_and_seconds(duration: timedelta) -> tuple[int, int]:
 
 def _default_success_body(result: SyncResult, minutes: int, seconds: int) -> str:
     return f"- 총 처리: {result.total}개\n- Upsert: {result.upserted}개\n- 소요 시간: {minutes}분 {seconds}초"
+
+
+#: 전체 동기화 후 API 가 돌려주지 않은 '정상' 어린이집이 이만큼 이상이면 경고한다.
+#: 시군구 하나(수백 곳) 실패나 시도명 개편(수천 곳)은 넘고, 평소 폐지 반영 지연은 넘지 않는 선.
+STALE_WARNING_THRESHOLD = 100
+
+
+def _full_success_body(result: SyncResult, minutes: int, seconds: int) -> str:
+    body = _default_success_body(result, minutes, seconds) + f"\n- 미갱신 정상: {result.stale_count}개"
+    if result.stale_count < STALE_WARNING_THRESHOLD:
+        return body
+    log.warning("전체 동기화 미갱신 정상 어린이집 %d개: %s", result.stale_count, result.stale_by_sido)
+    by_sido = "\n".join(f"  · {sido or '(시도명 없음)'}: {count}개" for sido, count in result.stale_by_sido)
+    return (
+        f"{body}\n"
+        f"⚠️ <b>API 가 돌려주지 않은 정상 어린이집 {result.stale_count}개</b> "
+        f"(기준 {STALE_WARNING_THRESHOLD}개) — 시군구 조회 실패나 시도명 개편을 확인하세요\n"
+        f"{by_sido}"
+    )
 
 
 def _delta_success_body(result: SyncResult, minutes: int, seconds: int) -> str:

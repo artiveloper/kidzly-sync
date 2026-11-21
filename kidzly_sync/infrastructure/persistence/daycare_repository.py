@@ -60,6 +60,18 @@ SAVE_AI_ANALYSIS_SQL = """
     UPDATE daycares SET ai_analysis = CAST(%(analysis_json)s AS jsonb) WHERE daycare_code = %(daycare_code)s
 """
 
+FIND_ALL_SIDO_NAMES_SQL = """
+    SELECT DISTINCT sido_name FROM daycares WHERE sido_name IS NOT NULL AND sido_name <> ''
+"""
+
+# synced_at 으로 "이번에 못 받은 행"을 고를 수 없다 — 변경 감지 가드 때문에 값이 같은 행은
+# synced_at 이 갱신되지 않는다. 그래서 이번 실행에서 받은 코드 집합을 직접 넘겨 비교한다.
+COUNT_ACTIVE_BY_SIDO_EXCLUDING_SQL = """
+    SELECT COALESCE(sido_name, ''), COUNT(*) FROM daycares
+    WHERE status = '정상' AND NOT (daycare_code = ANY(%(codes)s))
+    GROUP BY 1
+"""
+
 
 class DaycareRepositoryImpl:
     def __init__(self, conn: psycopg.Connection) -> None:
@@ -90,3 +102,13 @@ class DaycareRepositoryImpl:
     def save_ai_analysis(self, daycare_code: str, analysis_json: str) -> None:
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.execute(SAVE_AI_ANALYSIS_SQL, {"daycare_code": daycare_code, "analysis_json": analysis_json})
+
+    def find_all_sido_names(self) -> list[str]:
+        with self._conn.cursor() as cur:
+            cur.execute(FIND_ALL_SIDO_NAMES_SQL)
+            return [row[0] for row in cur.fetchall()]
+
+    def count_active_by_sido_excluding(self, daycare_codes: set[str]) -> dict[str, int]:
+        with self._conn.cursor() as cur:
+            cur.execute(COUNT_ACTIVE_BY_SIDO_EXCLUDING_SQL, {"codes": list(daycare_codes)})
+            return {sido: count for sido, count in cur.fetchall()}

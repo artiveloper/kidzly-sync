@@ -61,6 +61,10 @@ class SigunguRepository(Protocol):
         """지금까지 cpmsapi020 이 돌려준 시도명 (중복 제거)."""
         ...
 
+    def delete_all_except(self, arcodes: set[str]) -> int:
+        """``arcodes`` 에 없는 시군구를 지운다. 반환값은 지운 행 수."""
+        ...
+
 
 class SyncHistoryRepository(Protocol):
     def save(self, sync_history: SyncHistory) -> SyncHistory:

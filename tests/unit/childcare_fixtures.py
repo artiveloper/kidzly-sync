@@ -118,10 +118,15 @@ class RecordingDaycareRepository:
 class RecordingSigunguRepository:
     def __init__(self, sido_names: list[str] | None = None) -> None:
         self.batches: list[list[SigunguInfo]] = []
+        self.kept_arcodes: set[str] | None = None
         self._sido_names = sido_names or []
 
     def find_all_sido_names(self) -> list[str]:
         return list(self._sido_names)
+
+    def delete_all_except(self, arcodes: set[str]) -> int:
+        self.kept_arcodes = set(arcodes)
+        return 0
 
     def upsert_all(self, sigungus: list[SigunguInfo]) -> int:
         self.batches.append(sigungus)

@@ -73,6 +73,7 @@ class FullSyncUseCase:
         upsert_count = 0
         sigungu_count = 0
         seen_codes: set[str] = set()
+        seen_arcodes: set[str] = set()
 
         for sidoname in self._sido_names():
             log.debug("시도 '%s' 시군구 목록 조회 시작", sidoname)
@@ -89,6 +90,7 @@ class FullSyncUseCase:
                 continue
             log.info("시도 '%s' 시군구 %d개 조회 완료", sidoname, len(sigungu_list))
             sigungu_count += len(sigungu_list)
+            seen_arcodes.update(s.arcode for s in sigungu_list)
             self._sigungu_repository.upsert_all(sigungu_list)
 
             for sigungu in sigungu_list:
@@ -121,6 +123,14 @@ class FullSyncUseCase:
             # 모든 시도가 0건이면 개편이 아니라 API 쪽 이상이다 — 성공으로 닫으면 아무도 모른다
             log.error("모든 시도에서 시군구가 0개입니다")
             return Err(domain_error.Unknown("모든 시도에서 시군구가 0개입니다 (cpmsapi020)"))
+
+        # 시군구 목록 조회는 하나라도 실패하면 위에서 끝나므로, 여기까지 오면 seen_arcodes 가
+        # API 의 현재 시군구 전체다. 개편으로 사라진 옛 시군구(예: 광주·전남 29xxx/46xxx,
+        # 대구 편입 전 군위군 47720)를 지운다 — 웹이 sigungus 로 지역 칩을 만들어, 남겨 두면
+        # 눌러도 비어 있는 옛 지역이 계속 보인다.
+        removed = self._sigungu_repository.delete_all_except(seen_arcodes)
+        if removed:
+            log.info("API 가 더 이상 돌려주지 않는 시군구 %d개를 sigungus 에서 지웠습니다", removed)
 
         stale = self._daycare_repository.count_active_by_sido_excluding(seen_codes)
         stale_by_sido = tuple(sorted(stale.items(), key=lambda kv: (-kv[1], kv[0])))

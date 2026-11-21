@@ -232,3 +232,55 @@ def test_daycares_of_a_failing_sigungu_show_up_as_stale():
     result = use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
 
     assert result.value.stale_by_sido == (("서울특별시", 1),)
+
+
+# ── 옛 시군구 정리 ─────────────────────────────────────────────────────────────
+
+
+def test_keeps_only_the_sigungu_the_api_returned_this_run():
+    # 개편으로 사라진 옛 시군구가 sigungus 에 남으면 웹에 빈 지역 칩이 계속 보인다
+    lists = with_seoul("11110", "11140")
+    lists["전남광주통합특별시"] = Ok([sigungu("12110", sidoname="전남광주통합특별시")])
+    port = FakeChildcarePort(
+        sigungu_lists=lists,
+        details={"11110": Ok([]), "11140": Ok([]), "12110": Ok([])},
+    )
+    sigungu_repo = RecordingSigunguRepository(sido_names=["전남광주통합특별시"])
+
+    use_case(port, RecordingDaycareRepository(), sigungu_repo).execute()
+
+    assert sigungu_repo.kept_arcodes == {"11110", "11140", "12110"}
+
+
+def test_keeps_a_sigungu_whose_detail_call_failed():
+    # 상세(cpmsapi030) 실패는 그 시군구가 사라졌다는 뜻이 아니다
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Err(domain_error.ApiCallError(500, None, "서버 오류"))},
+    )
+    sigungu_repo = RecordingSigunguRepository()
+
+    use_case(port, RecordingDaycareRepository(), sigungu_repo).execute()
+
+    assert sigungu_repo.kept_arcodes == {"11110"}
+
+
+def test_deletes_nothing_when_a_sigungu_list_call_fails():
+    # 목록이 불완전하면 지울 기준이 없다
+    lists = with_seoul("11110")
+    lists["부산광역시"] = Err(domain_error.NetworkError("timeout"))
+    port = FakeChildcarePort(sigungu_lists=lists, details={"11110": Ok([])})
+    sigungu_repo = RecordingSigunguRepository()
+
+    use_case(port, RecordingDaycareRepository(), sigungu_repo).execute()
+
+    assert sigungu_repo.kept_arcodes is None
+
+
+def test_deletes_nothing_when_every_sido_is_empty():
+    port = FakeChildcarePort(sigungu_lists=all_sido_empty())
+    sigungu_repo = RecordingSigunguRepository()
+
+    use_case(port, RecordingDaycareRepository(), sigungu_repo).execute()
+
+    assert sigungu_repo.kept_arcodes is None

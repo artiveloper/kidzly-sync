@@ -186,6 +186,22 @@ def test_does_not_wipe_ai_analysis_on_upsert(conn, repository):
     assert column_of(conn, "11110000001", "ai_analysis") == {"summary": "요약"}
 
 
+def test_does_not_wipe_operator_note_on_upsert(conn, repository):
+    # operator_note 는 운영자가 손으로 넣는다 — DaycareData 에 들어가면 동기화마다 NULL 로 지워진다
+    repository.upsert_all([sample()])
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE daycares SET operator_note = %s WHERE daycare_code = %s",
+            ("운영자 메모", "11110000001"),
+        )
+    conn.commit()
+
+    repository.upsert_all([sample(capacity=120)])
+
+    assert column_of(conn, "11110000001", "operator_note") == "운영자 메모"
+    assert "operator_note" not in GUARDED_COLUMNS
+
+
 # ── 폐지 처리 ─────────────────────────────────────────────────────────────────
 
 

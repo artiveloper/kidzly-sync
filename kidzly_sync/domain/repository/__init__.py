@@ -43,10 +43,26 @@ class DaycareRepository(Protocol):
         """``ai_analysis`` jsonb 컬럼에 저장한다."""
         ...
 
+    def find_all_sido_names(self) -> list[str]:
+        """저장된 어린이집의 시도명 (중복 제거). API 응답에서 온 값이라 개편된 시도명이 먼저 나타난다."""
+        ...
+
+    def count_active_by_sido_excluding(self, daycare_codes: set[str]) -> dict[str, int]:
+        """``daycare_codes`` 에 없는 '정상' 어린이집 수를 시도명별로 센다."""
+        ...
+
 
 class SigunguRepository(Protocol):
     def upsert_all(self, sigungus: list[SigunguInfo]) -> int:
         """변경 감지 가드 없는 UPSERT (arcode PK 기준)."""
+        ...
+
+    def find_all_sido_names(self) -> list[str]:
+        """지금까지 cpmsapi020 이 돌려준 시도명 (중복 제거)."""
+        ...
+
+    def delete_all_except(self, arcodes: set[str]) -> int:
+        """``arcodes`` 에 없는 시군구를 지운다. 반환값은 지운 행 수."""
         ...
 
 

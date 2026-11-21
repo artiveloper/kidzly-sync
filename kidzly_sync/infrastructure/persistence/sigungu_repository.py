@@ -37,3 +37,17 @@ class SigunguRepositoryImpl:
         with self._conn.transaction(), self._conn.cursor() as cur:
             cur.executemany(UPSERT_SQL, params)
             return cur.rowcount
+
+    def find_all_sido_names(self) -> list[str]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT sidoname FROM sigungus WHERE sidoname IS NOT NULL AND sidoname <> ''"
+            )
+            return [row[0] for row in cur.fetchall()]
+
+    def delete_all_except(self, arcodes: set[str]) -> int:
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM sigungus WHERE NOT (arcode = ANY(%(arcodes)s))", {"arcodes": list(arcodes)}
+            )
+            return cur.rowcount

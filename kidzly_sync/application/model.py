@@ -13,6 +13,12 @@ class SyncResult:
     total: int
     upserted: int
     closed: int = 0
+    stale_by_sido: tuple[tuple[str, int], ...] = ()
+    """FULL 전용 — 이번 실행에서 API 가 돌려주지 않은 '정상' 어린이집 수 (시도명, 건수), 많은 순"""
+
+    @property
+    def stale_count(self) -> int:
+        return sum(count for _, count in self.stale_by_sido)
 
 
 @dataclass(frozen=True, slots=True)

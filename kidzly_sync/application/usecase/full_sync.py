@@ -1,11 +1,21 @@
 """어린이집 전체 동기화 (childcare.go.kr).
 
-17개 시도 → 각 시도의 시군구 → 각 시군구의 어린이집 상세 순으로 훑는다.
+시도 → 각 시도의 시군구 → 각 시군구의 어린이집 상세 순으로 훑는다.
+
+시도 목록은 코드에 고정하지 않는다. cpmsapi020 은 시도명으로만 조회되고 시도 목록 API 가 없는데,
+고정 목록은 행정구역 개편을 따라가지 못한다 — 2026년 광주·전남이 '전남광주통합특별시'로
+바뀐 뒤 옛 이름은 0건을 돌려줬고, 약 3,200곳이 반년 동안 갱신되지 않았다. 그래서 시도명은
+API 가 이미 돌려준 값(sigungus.sidoname, daycares.sido_name)에서 모은다. 개편된 이름은 증분
+동기화(cpmsapi030 응답)로 먼저 들어오므로 다음 전체 동기화가 저절로 따라간다.
 
 실패 처리가 두 층에서 다르다:
 - 시군구 목록(cpmsapi020) 실패는 fail-fast — 그 시도 전체가 통째로 빠지므로 덮어둘 수 없다.
+  단, 0건은 실패가 아니다 — 개편으로 사라진 옛 시도명이다.
 - 어린이집 상세(cpmsapi030) 실패는 경고만 남기고 건너뛴다 — 시군구 하나가 빠져도
   나머지 수백 개는 살릴 수 있고, 주 1회 재실행이 메운다.
+
+어느 경로로 빠졌든 결과에 남도록, 끝에 "이번에 API 가 돌려주지 않은 '정상' 어린이집"을
+시도별로 센다 (``SyncResult.stale_by_sido``). 경고 여부는 오케스트레이터가 정한다.
 """
 
 from __future__ import annotations
@@ -16,12 +26,14 @@ import time
 from kidzly_sync.application.model import SyncResult
 from kidzly_sync.application.port import ChildcareApiPort
 from kidzly_sync.config import ChildcareApiConfig
+from kidzly_sync.domain import error as domain_error
 from kidzly_sync.domain.error import DomainError
 from kidzly_sync.domain.repository import DaycareRepository, SigunguRepository
 from kidzly_sync.domain.result import Err, Ok, Result
 
 log = logging.getLogger(__name__)
 
+# 시작값 — 빈 DB(새 환경·테스트)에서도 전국을 돌 수 있게 한다. 개편된 이름은 DB 에서 더해진다.
 SIDO_LIST: tuple[str, ...] = (
     "서울특별시",
     "부산광역시",
@@ -59,8 +71,11 @@ class FullSyncUseCase:
     def execute(self) -> Result[DomainError, SyncResult]:
         total_count = 0
         upsert_count = 0
+        sigungu_count = 0
+        seen_codes: set[str] = set()
+        seen_arcodes: set[str] = set()
 
-        for sidoname in SIDO_LIST:
+        for sidoname in self._sido_names():
             log.debug("시도 '%s' 시군구 목록 조회 시작", sidoname)
             sigungu_result = self._port.fetch_sigungu_list(sidoname)
             if isinstance(sigungu_result, Err):
@@ -68,7 +83,14 @@ class FullSyncUseCase:
                 return sigungu_result
 
             sigungu_list = sigungu_result.value
+            if not sigungu_list:
+                log.info(
+                    "시도 '%s' 시군구 0개 — 개편으로 더 이상 쓰이지 않는 시도명으로 보고 건너뜀", sidoname
+                )
+                continue
             log.info("시도 '%s' 시군구 %d개 조회 완료", sidoname, len(sigungu_list))
+            sigungu_count += len(sigungu_list)
+            seen_arcodes.update(s.arcode for s in sigungu_list)
             self._sigungu_repository.upsert_all(sigungu_list)
 
             for sigungu in sigungu_list:
@@ -86,6 +108,7 @@ class FullSyncUseCase:
                     count = self._daycare_repository.upsert_all(daycares)
                     total_count += len(daycares)
                     upsert_count += count
+                    seen_codes.update(d.daycare_code for d in daycares)
                     log.debug(
                         "시군구 '%s' 어린이집 %d개 upsert (누적 %d개)",
                         sigungu.sigunname,
@@ -96,5 +119,33 @@ class FullSyncUseCase:
                 # API 과호출 방지
                 time.sleep(self._config.request_interval_ms / 1000)
 
-        log.info("전체 동기화 완료 — 총 %d개, upserted=%d개", total_count, upsert_count)
-        return Ok(SyncResult(total=total_count, upserted=upsert_count))
+        if sigungu_count == 0:
+            # 모든 시도가 0건이면 개편이 아니라 API 쪽 이상이다 — 성공으로 닫으면 아무도 모른다
+            log.error("모든 시도에서 시군구가 0개입니다")
+            return Err(domain_error.Unknown("모든 시도에서 시군구가 0개입니다 (cpmsapi020)"))
+
+        # 시군구 목록 조회는 하나라도 실패하면 위에서 끝나므로, 여기까지 오면 seen_arcodes 가
+        # API 의 현재 시군구 전체다. 개편으로 사라진 옛 시군구(예: 광주·전남 29xxx/46xxx,
+        # 대구 편입 전 군위군 47720)를 지운다 — 웹이 sigungus 로 지역 칩을 만들어, 남겨 두면
+        # 눌러도 비어 있는 옛 지역이 계속 보인다.
+        removed = self._sigungu_repository.delete_all_except(seen_arcodes)
+        if removed:
+            log.info("API 가 더 이상 돌려주지 않는 시군구 %d개를 sigungus 에서 지웠습니다", removed)
+
+        stale = self._daycare_repository.count_active_by_sido_excluding(seen_codes)
+        stale_by_sido = tuple(sorted(stale.items(), key=lambda kv: (-kv[1], kv[0])))
+
+        log.info(
+            "전체 동기화 완료 — 총 %d개, upserted=%d개, 미갱신 정상=%d개",
+            total_count,
+            upsert_count,
+            sum(stale.values()),
+        )
+        return Ok(SyncResult(total=total_count, upserted=upsert_count, stale_by_sido=stale_by_sido))
+
+    def _sido_names(self) -> list[str]:
+        """시작값 순서를 유지하고, API 가 돌려준 적 있는 새 시도명을 뒤에 붙인다."""
+        known = set(self._sigungu_repository.find_all_sido_names()) | set(
+            self._daycare_repository.find_all_sido_names()
+        )
+        return [*SIDO_LIST, *sorted(known - set(SIDO_LIST))]

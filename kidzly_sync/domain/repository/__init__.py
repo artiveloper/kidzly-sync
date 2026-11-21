@@ -51,6 +51,10 @@ class DaycareRepository(Protocol):
         """``daycare_codes`` 에 없는 '정상' 어린이집 수를 시도명별로 센다."""
         ...
 
+    def find_active_excluding(self, daycare_codes: set[str]) -> list[tuple[str, str]]:
+        """``daycare_codes`` 에 없는 '정상' 어린이집의 (daycare_code, sigungu_code)."""
+        ...
+
 
 class SigunguRepository(Protocol):
     def upsert_all(self, sigungus: list[SigunguInfo]) -> int:

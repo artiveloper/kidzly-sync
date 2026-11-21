@@ -328,3 +328,15 @@ def test_counts_every_active_daycare_when_nothing_was_received(conn, repository)
     repository.upsert_all([sample("A", sido_name="서울특별시")])
 
     assert repository.count_active_by_sido_excluding(set()) == {"서울특별시": 1}
+
+
+def test_finds_active_daycares_missing_from_the_given_codes_with_their_sigungu(conn, repository):
+    repository.upsert_all(
+        [
+            sample("A", sigungu_code="11110"),
+            sample("B", sigungu_code="11140"),
+            sample("X", sigungu_code="11140", status="폐지"),
+        ]
+    )
+
+    assert repository.find_active_excluding({"A"}) == [("B", "11140")]

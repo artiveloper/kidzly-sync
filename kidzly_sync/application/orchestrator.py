@@ -190,13 +190,16 @@ def _default_success_body(result: SyncResult, minutes: int, seconds: int) -> str
 
 #: 전체 동기화 후 API 가 돌려주지 않은 '정상' 어린이집이 이만큼 이상이면 경고한다.
 #: 시군구 하나(수백 곳) 실패나 시도명 개편(수천 곳)은 넘고, 평소 폐지 반영 지연은 넘지 않는 선.
-#: 2026-11 기준 API 응답에서 사라졌지만 '정상'으로 남은 행이 약 160곳이라, 이를 정리하기 전까지
-#: 매주 경고가 뜨지 않도록 100 → 200 으로 올렸다.
-STALE_WARNING_THRESHOLD = 200
+#: 2026-11 에 API 에서 사라진 '정상' 행(폐원 180곳)을 정리하고, 전체 동기화가 이를 폐지로 바꾸게
+#: 되면서 임시로 올렸던 200 을 다시 100 으로 내렸다.
+STALE_WARNING_THRESHOLD = 100
 
 
 def _full_success_body(result: SyncResult, minutes: int, seconds: int) -> str:
-    body = _default_success_body(result, minutes, seconds) + f"\n- 미갱신 정상: {result.stale_count}개"
+    body = (
+        _default_success_body(result, minutes, seconds)
+        + f"\n- 폐지 반영: {result.closed}개\n- 미갱신 정상: {result.stale_count}개"
+    )
     if result.stale_count < STALE_WARNING_THRESHOLD:
         return body
     log.warning("전체 동기화 미갱신 정상 어린이집 %d개: %s", result.stale_count, result.stale_by_sido)

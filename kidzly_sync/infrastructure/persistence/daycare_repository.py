@@ -73,6 +73,12 @@ COUNT_ACTIVE_BY_SIDO_EXCLUDING_SQL = """
 """
 
 
+FIND_ACTIVE_EXCLUDING_SQL = """
+    SELECT daycare_code, sigungu_code FROM daycares
+    WHERE status = '정상' AND NOT (daycare_code = ANY(%(codes)s))
+"""
+
+
 class DaycareRepositoryImpl:
     def __init__(self, conn: psycopg.Connection) -> None:
         self._conn = conn
@@ -112,3 +118,8 @@ class DaycareRepositoryImpl:
         with self._conn.cursor() as cur:
             cur.execute(COUNT_ACTIVE_BY_SIDO_EXCLUDING_SQL, {"codes": list(daycare_codes)})
             return {sido: count for sido, count in cur.fetchall()}
+
+    def find_active_excluding(self, daycare_codes: set[str]) -> list[tuple[str, str]]:
+        with self._conn.cursor() as cur:
+            cur.execute(FIND_ACTIVE_EXCLUDING_SQL, {"codes": list(daycare_codes)})
+            return [(code, sigungu_code) for code, sigungu_code in cur.fetchall()]

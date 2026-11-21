@@ -24,8 +24,14 @@ def test_does_not_warn_below_the_threshold():
 def test_warns_with_a_per_sido_breakdown_at_the_threshold():
     text = body(("전라남도", 818), ("광주광역시", 728))
 
-    assert STALE_WARNING_THRESHOLD == 200
+    assert STALE_WARNING_THRESHOLD == 100
     assert "⚠️" in text
     assert "1546개" in text
     assert "전라남도: 818개" in text
     assert "광주광역시: 728개" in text
+
+
+def test_reports_the_number_of_daycares_closed_by_the_sync():
+    text = _full_success_body(SyncResult(total=30396, upserted=120, closed=7), 11, 0)
+
+    assert "폐지 반영: 7개" in text

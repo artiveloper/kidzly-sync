@@ -24,7 +24,7 @@ def test_does_not_warn_below_the_threshold():
 def test_warns_with_a_per_sido_breakdown_at_the_threshold():
     text = body(("전라남도", 818), ("광주광역시", 728))
 
-    assert STALE_WARNING_THRESHOLD == 100
+    assert STALE_WARNING_THRESHOLD == 200
     assert "⚠️" in text
     assert "1546개" in text
     assert "전라남도: 818개" in text

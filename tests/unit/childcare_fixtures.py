@@ -6,6 +6,7 @@ import dataclasses
 
 from kidzly_sync.application.model import DaycareData, SigunguInfo
 from kidzly_sync.config import ChildcareApiConfig
+from kidzly_sync.domain.result import Ok
 
 
 def config(request_interval_ms: int = 0) -> ChildcareApiConfig:
@@ -71,7 +72,10 @@ class FakeChildcarePort:
 
     def fetch_closed_daycares(self, yyyymm: str):
         self.closed_calls.append(yyyymm)
-        return self._closed
+        # 전체 동기화는 여러 달을 조회한다 — 달별 응답을 주면 그것을, 아니면 같은 응답을 돌려준다
+        if isinstance(self._closed, dict):
+            return self._closed.get(yyyymm, Ok([]))
+        return self._closed if self._closed is not None else Ok([])
 
 
 class RecordingDaycareRepository:
@@ -81,6 +85,7 @@ class RecordingDaycareRepository:
         closed_returns: list[int] | None = None,
         sido_names: list[str] | None = None,
         active_by_sido: dict[str, dict[str, str]] | None = None,
+        sigungu_of: dict[str, str] | None = None,
     ):
         """``active_by_sido`` 는 DB 에 있는 '정상' 어린이집 — {시도명: {코드: 코드}} 형태로 둔다."""
         self.batches: list[list[DaycareData]] = []
@@ -90,12 +95,23 @@ class RecordingDaycareRepository:
         self._closed_returns = list(closed_returns) if closed_returns is not None else None
         self._sido_names = sido_names or []
         self._active_by_sido = active_by_sido or {}
+        self._sigungu_of = sigungu_of or {}
+        self._closed_codes: set[str] = set()
 
     def find_all_sido_names(self) -> list[str]:
         return list(self._sido_names)
 
+    def find_active_excluding(self, daycare_codes: set[str]) -> list[tuple[str, str]]:
+        return [
+            (code, self._sigungu_of.get(code, "11110"))
+            for codes in self._active_by_sido.values()
+            for code in codes
+            if code not in daycare_codes and code not in self._closed_codes
+        ]
+
     def count_active_by_sido_excluding(self, daycare_codes: set[str]) -> dict[str, int]:
         self.excluded_codes = set(daycare_codes)
+        daycare_codes = set(daycare_codes) | self._closed_codes
         counts = {
             sido: sum(1 for c in codes if c not in daycare_codes)
             for sido, codes in self._active_by_sido.items()
@@ -110,6 +126,7 @@ class RecordingDaycareRepository:
 
     def mark_as_closed(self, daycare_code: str, abolished_date: str | None) -> int:
         self.closed_calls.append((daycare_code, abolished_date))
+        self._closed_codes.add(daycare_code)
         if self._closed_returns is not None:
             return self._closed_returns.pop(0)
         return 1

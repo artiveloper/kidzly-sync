@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from kidzly_sync.application.model import SyncResult
+from datetime import date
+
+from kidzly_sync.application.model import ClosedDaycareInfo, SyncResult
 from kidzly_sync.application.usecase.full_sync import SIDO_LIST, FullSyncUseCase
 from kidzly_sync.domain import error as domain_error
 from kidzly_sync.domain.result import Err, Ok
@@ -15,9 +17,11 @@ from tests.unit.childcare_fixtures import (
     sigungu,
 )
 
+TODAY = date(2026, 11, 22)
+
 
 def use_case(port, daycare_repo, sigungu_repo) -> FullSyncUseCase:
-    return FullSyncUseCase(port, daycare_repo, sigungu_repo, config())
+    return FullSyncUseCase(port, daycare_repo, sigungu_repo, config(), today=TODAY)
 
 
 def all_sido_empty() -> dict[str, object]:
@@ -284,3 +288,116 @@ def test_deletes_nothing_when_every_sido_is_empty():
     use_case(port, RecordingDaycareRepository(), sigungu_repo).execute()
 
     assert sigungu_repo.kept_arcodes is None
+
+
+# ── API 에서 사라진 폐원 반영 ──────────────────────────────────────────────────
+
+
+def closed(code: str, abolished: str = "20260331") -> ClosedDaycareInfo:
+    return ClosedDaycareInfo(daycare_code=code, abolished_date=abolished)
+
+
+def test_closes_active_daycares_missing_from_the_api_and_listed_as_closed():
+    # 2026-11: cpmsapi030 이 폐지 직후 '정상'으로 주다가 목록에서 빼, 폐원 180곳이 '정상'으로 남았다
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Ok([daycare("A")])},
+        closed_daycares={"202603": Ok([closed("GONE", "20260331")])},
+    )
+    daycare_repo = RecordingDaycareRepository(active_by_sido={"서울특별시": {"A": "A", "GONE": "GONE"}})
+
+    result = use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert daycare_repo.closed_calls == [("GONE", "20260331")]
+    assert result.value.closed == 1
+    # 폐지로 바꾼 행은 미갱신에서 빠진다
+    assert result.value.stale_by_sido == ()
+
+
+def test_keeps_a_missing_daycare_that_is_not_listed_as_closed():
+    # 목록에서 빠졌다는 것만으로는 폐지하지 않는다 — API 일시 누락일 수 있다
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Ok([daycare("A")])},
+        closed_daycares=Ok([]),
+    )
+    daycare_repo = RecordingDaycareRepository(active_by_sido={"서울특별시": {"A": "A", "MISSING": "MISSING"}})
+
+    result = use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert daycare_repo.closed_calls == []
+    assert result.value.stale_by_sido == (("서울특별시", 1),)
+
+
+def test_never_closes_a_daycare_that_the_api_returned():
+    # 폐지 API 에는 그 뒤 재개한 곳도 있다 — 이번에 받은 곳은 건드리지 않는다
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Ok([daycare("REOPENED")])},
+        closed_daycares=Ok([closed("REOPENED")]),
+    )
+    daycare_repo = RecordingDaycareRepository(active_by_sido={"서울특별시": {"REOPENED": "REOPENED"}})
+
+    use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert daycare_repo.closed_calls == []
+
+
+def test_does_not_close_daycares_of_a_sigungu_whose_detail_call_failed():
+    # 그 시군구는 '목록에 없음'을 확인하지 못했다
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110", "11140"),
+        details={"11110": Ok([]), "11140": Err(domain_error.ApiCallError(500, None, "서버 오류"))},
+        closed_daycares=Ok([closed("X")]),
+    )
+    daycare_repo = RecordingDaycareRepository(
+        active_by_sido={"서울특별시": {"X": "X"}}, sigungu_of={"X": "11140"}
+    )
+
+    use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert daycare_repo.closed_calls == []
+
+
+def test_looks_back_twelve_months_of_closed_lists():
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Ok([])},
+        closed_daycares=Ok([]),
+    )
+    daycare_repo = RecordingDaycareRepository(active_by_sido={"서울특별시": {"M": "M"}})
+
+    use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert port.closed_calls[0] == "202611"
+    assert port.closed_calls[-1] == "202512"
+    assert len(port.closed_calls) == 12
+
+
+def test_skips_the_closed_list_when_nothing_is_missing():
+    port = FakeChildcarePort(sigungu_lists=with_seoul("11110"), details={"11110": Ok([daycare("A")])})
+
+    use_case(
+        port,
+        RecordingDaycareRepository(active_by_sido={"서울특별시": {"A": "A"}}),
+        RecordingSigunguRepository(),
+    ).execute()
+
+    assert port.closed_calls == []
+
+
+def test_a_failing_closed_month_does_not_fail_the_sync():
+    port = FakeChildcarePort(
+        sigungu_lists=with_seoul("11110"),
+        details={"11110": Ok([])},
+        closed_daycares={
+            "202611": Err(domain_error.ApiCallError(500, None, "서버 오류")),
+            "202610": Ok([closed("GONE", "20261015")]),
+        },
+    )
+    daycare_repo = RecordingDaycareRepository(active_by_sido={"서울특별시": {"GONE": "GONE"}})
+
+    result = use_case(port, daycare_repo, RecordingSigunguRepository()).execute()
+
+    assert isinstance(result, Ok)
+    assert daycare_repo.closed_calls == [("GONE", "20261015")]
